@@ -148,6 +148,7 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 
 - The picker lists **projects**, one row per inbox folder: the folder name, the file count and age, the file names in lane order (the app first, then `order`), and the total number of strings — or the project's progress once it is open. Never list every file of every project in it; that is what made it unreadable.
 - The lane row inside the editor is the file switcher: `Internal` first, then the documents by `order`, then name. It sits directly above the tag rail and stays visible for a one-file project, because it is where the editor says which file the list came from.
+- A long project overflows that row. The rail scrolls on the wheel and shows a caret at an end only while there is something in that direction; measure with a `ResizeObserver` and a scroll listener, not once on mount, and take the caret out of the tab order when it is hidden.
 - Opening a project loads every export in its folder in one commit and activates the app export; `src/lib/projects.ts` owns the grouping and the sort, and `server/inbox.mjs` must expose `surface`, `source`, `order` and `title` for it.
 - A listing entry that silently lacks those fields reads as `undefined` and every file looks like a separate project: check `/api/files` before believing the UI.
 

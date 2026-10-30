@@ -122,6 +122,9 @@
    and the documents the README links to, each with its own progress. */
 
 .st-lanebar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   scrollbar-width: none;
   mask-image: linear-gradient(to right, transparent 0, #000 10px, #000 calc(100% - 14px), transparent 100%);
 }

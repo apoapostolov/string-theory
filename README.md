@@ -125,7 +125,7 @@ Rewrites merge back by `id`, never by position or by matching text. `previous` i
 
 The glyph at the left of each row is the whole workflow. Click it to move a string from untouched to completed, and to rotate between completed and in progress. Right-click returns it to untouched without touching the text. Typing a change marks the string completed, because a rewrite that differs from the source is a decision you made.
 
-Filters count by state (`Untouched`, `In progress`, `Completed`) and by fit (`Close to limit`, `Will wrap`), and `Next issue` walks the spills. A rail of file names sits above the tags — `Internal` for the app's own strings, then the project's documents in reading order, each with its own progress — and clicking one switches the list without losing an edit. Several projects stay open at once, each with its own working set.
+Filters count by state (`Untouched`, `In progress`, `Completed`) and by fit (`Close to limit`, `Will wrap`), and `Next issue` walks the spills. A rail of file names sits above the tags — `Internal` for the app's own strings, then the project's documents in reading order, each with its own progress — and clicking one switches the list without losing an edit. A project with more files than fit scrolls: the wheel works, and a caret pair appears at whichever end still has something behind it. Several projects stay open at once, each with its own working set.
 
 ![The source picker: one row per project, its files in reading order](docs/app-projects.png)
 
