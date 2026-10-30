@@ -10,9 +10,26 @@ export const DEFAULT_FONT = { family: 'Segoe UI', size: 14, weight: 400, letterS
 const ID_KEYS = ['id', 'key', 'name', 'textId', 'text_id', 'stringId', 'string_id']
 const TEXT_KEYS = ['text', 'value', 'string', 'source', 'current', 'content', 'en', 'default']
 const WHERE_KEYS = ['where', 'info', 'place', 'location', 'context', 'usedIn', 'used_in', 'note']
-const MAX_PX_KEYS = ['maxPx', 'maxPIL', 'maxPil', 'max_pil', 'max_px', 'pilMax', 'pil_max', 'maxWidth', 'max_width', 'max']
+// maxPx is the v1 name for the per-line budget and still reads as one.
+const PER_LINE_KEYS = [
+  'maxPxPerLine',
+  'max_px_per_line',
+  'maxPx',
+  'maxPIL',
+  'maxPil',
+  'max_pil',
+  'max_px',
+  'pilMax',
+  'pil_max',
+  'maxWidth',
+  'max_width',
+  'max'
+]
+const LINES_KEYS = ['maxLines', 'max_lines', 'lines', 'wrapLines', 'wrap_lines']
+const TOTAL_PX_KEYS = ['maxPxTotal', 'max_px_total', 'totalMaxPx', 'total_max_px', 'maxPxString', 'max_px_string']
 const MAX_CHARS_KEYS = ['maxChars', 'max_chars', 'maxLength', 'max_length', 'charLimit', 'char_limit', 'limit']
 const PX_KEYS = ['px', 'pil', 'PIL', 'width', 'measuredPx', 'measured_px']
+const FONT_KEYS = ['font', 'textFont', 'text_font', 'typography']
 
 function pick(source, keys) {
   for (const key of keys) {
@@ -75,6 +92,24 @@ function readFont(raw, issues) {
   }
 }
 
+function readFontOverride(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const family = str(raw.family ?? raw.fontFamily ?? raw.font_family)
+  const size = num(raw.size ?? raw.fontSize ?? raw.font_size ?? raw.px)
+  if (!family && !size) return null
+  const weightRaw = raw.weight ?? raw.fontWeight ?? raw.font_weight
+  let weight = DEFAULT_FONT.weight
+  if (typeof weightRaw === 'number') weight = weightRaw
+  else if (typeof weightRaw === 'string' && /^\d+$/.test(weightRaw)) weight = Number(weightRaw)
+  else if (typeof weightRaw === 'string' && /semibold|bold/i.test(weightRaw)) weight = 600
+  return {
+    family: family || DEFAULT_FONT.family,
+    size: size && size > 0 ? size : DEFAULT_FONT.size,
+    weight,
+    letterSpacing: num(raw.letterSpacing ?? raw.letter_spacing ?? raw.tracking) ?? 0
+  }
+}
+
 function entriesOf(raw) {
   if (Array.isArray(raw)) return raw
   if (raw && typeof raw === 'object') {
@@ -108,7 +143,13 @@ export function parseExport(raw, name) {
   const app = str(envelope.app ?? envelope.application ?? envelope.product ?? envelope.project ?? '')
   const context = str(envelope.context ?? envelope.screen ?? envelope.feature ?? '')
   const font = readFont(envelope.font ?? envelope.metrics ?? envelope.typography, issues)
-  const defaultMaxPx = num(envelope.defaultMaxPx ?? envelope.default_max_px ?? envelope.maxPx)
+  const defaultMaxPx = num(
+    envelope.defaultMaxPxPerLine ??
+      envelope.default_max_px_per_line ??
+      envelope.defaultMaxPx ??
+      envelope.default_max_px ??
+      envelope.maxPx
+  )
   if (defaultMaxPx !== null && defaultMaxPx <= 0) {
     issues.push({
       level: 'warn',
@@ -123,6 +164,8 @@ export function parseExport(raw, name) {
   let emptyText = 0
   let duplicates = 0
   let badMaxPx = 0
+  let badMaxLines = 0
+  let inconsistentTotals = 0
   let badMaxChars = 0
   let skipped = 0
   let longText = 0
@@ -131,13 +174,17 @@ export function parseExport(raw, name) {
     if (typeof entry === 'string') {
       const id = `string.${index + 1}`
       syntheticIds += 1
+      const fallback = defaultMaxPx && defaultMaxPx > 0 ? defaultMaxPx : null
       rows.push({
         key: `${index}:${id}`,
         id,
         source: entry,
         where: '',
-        maxPx: defaultMaxPx && defaultMaxPx > 0 ? defaultMaxPx : null,
-        maxChars: null
+        maxPxPerLine: fallback,
+        maxLines: 1,
+        maxPxTotal: fallback,
+        maxChars: null,
+        font: null
       })
       return
     }
@@ -160,13 +207,28 @@ export function parseExport(raw, name) {
     seen.set(baseId, count)
     if (count > 1) duplicates += 1
 
-    const pxValue = num(pick(entry, MAX_PX_KEYS))
-    let maxPx = pxValue
-    if (pxValue !== null && pxValue <= 0) {
+    const lineValue = num(pick(entry, PER_LINE_KEYS))
+    let maxPxPerLine = lineValue
+    if (lineValue !== null && lineValue <= 0) {
       badMaxPx += 1
-      maxPx = null
+      maxPxPerLine = null
     }
-    if (maxPx === null) maxPx = defaultMaxPx && defaultMaxPx > 0 ? defaultMaxPx : null
+    if (maxPxPerLine === null) maxPxPerLine = defaultMaxPx && defaultMaxPx > 0 ? defaultMaxPx : null
+
+    const linesValue = num(pick(entry, LINES_KEYS))
+    let maxLines = 1
+    if (linesValue !== null) {
+      if (!Number.isInteger(linesValue) || linesValue < 1 || linesValue > 20) badMaxLines += 1
+      else maxLines = linesValue
+    }
+
+    const totalValue = num(pick(entry, TOTAL_PX_KEYS))
+    if (totalValue !== null && totalValue <= 0) badMaxPx += 1
+    const cleanTotal = totalValue !== null && totalValue > 0 ? totalValue : null
+    const derivedTotal = maxPxPerLine ? maxPxPerLine * maxLines : null
+    if (cleanTotal !== null && derivedTotal !== null && Math.abs(cleanTotal - derivedTotal) > 2) {
+      inconsistentTotals += 1
+    }
 
     const charsRaw = num(pick(entry, MAX_CHARS_KEYS))
     let maxChars = charsRaw
@@ -181,8 +243,13 @@ export function parseExport(raw, name) {
       id: count > 1 ? `${baseId} #${count}` : baseId,
       source: text,
       where: str(pick(entry, WHERE_KEYS)),
-      maxPx: px && !maxPx ? px : maxPx,
-      maxChars
+      maxPxPerLine: px && !maxPxPerLine ? px : maxPxPerLine,
+      maxLines,
+      // The line count times the line width is the budget that matters; a
+      // declared total that disagrees is reported and recomputed.
+      maxPxTotal: maxPxPerLine ? maxPxPerLine * maxLines : cleanTotal,
+      maxChars,
+      font: readFontOverride(pick(entry, FONT_KEYS))
     })
   })
 
@@ -226,7 +293,21 @@ export function parseExport(raw, name) {
     issues.push({
       level: 'warn',
       code: 'bad-max-px',
-      message: `${badMaxPx} invalid maxPx value${badMaxPx === 1 ? '' : 's'} cleared (must be greater than zero).`
+      message: `${badMaxPx} invalid maxPxPerLine value${badMaxPx === 1 ? '' : 's'} cleared (must be greater than zero).`
+    })
+  }
+  if (badMaxLines) {
+    issues.push({
+      level: 'warn',
+      code: 'bad-max-lines',
+      message: `${badMaxLines} invalid maxLines value${badMaxLines === 1 ? '' : 's'} treated as one line (must be a whole number from 1 to 20).`
+    })
+  }
+  if (inconsistentTotals) {
+    issues.push({
+      level: 'warn',
+      code: 'inconsistent-max-px',
+      message: `${inconsistentTotals} string${inconsistentTotals === 1 ? ' declares' : 's declare'} a maxPxTotal that is not maxPxPerLine × maxLines. The total was recomputed from the line budget.`
     })
   }
   if (badMaxChars) {
@@ -244,18 +325,18 @@ export function parseExport(raw, name) {
     })
   }
 
-  const unconstrained = rows.filter((row) => !row.maxPx).length
+  const unconstrained = rows.filter((row) => !row.maxPxPerLine).length
   if (rows.length && unconstrained === rows.length) {
     issues.push({
       level: 'warn',
       code: 'no-max-px',
-      message: 'No pixel budget anywhere. Add `maxPx` per string or a `defaultMaxPx`, otherwise no row can be flagged as wrapping.'
+      message: 'No pixel budget anywhere. Add `maxPxPerLine` per string or a `defaultMaxPx`, otherwise no row can be flagged as wrapping.'
     })
   } else if (unconstrained > 0) {
     issues.push({
       level: 'warn',
       code: 'partial-max-px',
-      message: `${unconstrained} string${unconstrained === 1 ? ' has' : 's have'} no maxPx and cannot go over a limit.`
+      message: `${unconstrained} string${unconstrained === 1 ? ' has' : 's have'} no maxPxPerLine and cannot go over a limit.`
     })
   }
 

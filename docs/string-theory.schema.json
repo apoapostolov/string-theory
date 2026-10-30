@@ -30,7 +30,12 @@
         "defaultMaxPx": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "description": "Pixel budget for strings that do not carry their own maxPx."
+          "description": "Older name for defaultMaxPxPerLine. Accepted on input, never written."
+        },
+        "defaultMaxPxPerLine": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Line budget for strings that do not carry their own maxPxPerLine."
         },
         "strings": { "$ref": "#/$defs/stringArray" }
       },
@@ -89,10 +94,26 @@
           "type": "string",
           "description": "The line of UI where the string appears. Shown on hover and sent to the model."
         },
-        "maxPx": {
+        "maxPxPerLine": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "description": "Pixel width the line must not exceed, measured in the file font."
+          "description": "Width of one line: the box the text wraps inside, measured in the file font."
+        },
+        "maxLines": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 1,
+          "description": "How many lines the layout allows this string."
+        },
+        "maxPxTotal": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Total budget, normally maxPxPerLine x maxLines. Recomputed when it disagrees."
+        },
+        "font": {
+          "$ref": "#/$defs/font",
+          "description": "Measurement override for a string that does not use the file font."
         },
         "maxChars": {
           "type": "integer",

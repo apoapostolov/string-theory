@@ -12,13 +12,13 @@ Machine-readable contract: [`string-theory.schema.json`](string-theory.schema.js
 app catalogue ──export──▶ app.strings.json ──▶ String Theory ──▶ app.rewritten.json ──▶ app catalogue
                                 │                                        │
                           ids, text, where,                        text, previous,
-                          maxPx, font                              changed, by id
+                  maxPxPerLine, maxLines, font                changed, by id
 ```
 
 Three guarantees the tool relies on:
 
 1. **Ids survive the round trip.** A rewrite merges back by `id`, never by position or by matching text.
-2. **Budgets are absolute pixels, not relative to the current text.** `maxPx` is what the layout gives the string.
+2. **Budgets are absolute pixels, not relative to the current text.** `maxPxPerLine` is the box the layout gives one line, and `maxLines` is how many of them the layout allows.
 3. **One font per file.** Every pixel figure in that file means the same thing.
 
 ### Where files are picked up
@@ -40,6 +40,7 @@ The loader is deliberately more permissive than the schema: it accepts documente
 ### Changelog
 
 - `string-theory/1` initial. Envelope `format`, `app`, `context`, `font`, `defaultMaxPx`, `strings`; string fields `id`, `text`, `where`, `maxPx`, `maxChars`, `px`.
+- `string-theory/1` lines and per-string font: `maxPxPerLine` is the canonical line budget, `maxLines` and `maxPxTotal` carry the vertical budget, and a string may declare its own `font`. `maxPx` still reads as `maxPxPerLine` for older exporters, and `defaultMaxPx` reads as `defaultMaxPxPerLine`. Export always writes the new names.
 
 ## Envelope
 
@@ -49,7 +50,7 @@ The loader is deliberately more permissive than the schema: it accepts documente
 | `app` | string | recommended | Application name. Header label, export filename, AI prompt context. |
 | `context` | string | optional | One line about the screen or feature set. Sent with every AI prompt. |
 | `font` | object | required | The font the pixel figures are measured in. See below. |
-| `defaultMaxPx` | number | optional | Budget applied to strings that do not carry `maxPx`. |
+| `defaultMaxPxPerLine` | number | optional | Line budget applied to strings that do not carry `maxPxPerLine`. `defaultMaxPx` is the older name for the same thing. |
 | `strings` | array | required | The strings. A bare array is also accepted as the whole document. |
 
 Nothing else is required. Unknown envelope fields are preserved by no one and read by no one: they are ignored.
@@ -69,7 +70,7 @@ Measurement is done on the machine that runs the tool. If the family is not inst
 
 - Prefer a font the app actually ships, not a system nickname.
 - Record the weight honestly. Bold UI labels are 6% wider than regular at the same size.
-- When the app already measures text in its own layout, still export `maxPx` from the container, and put the app's own figure in `px` for comparison.
+- When the app already measures text in its own layout, still export `maxPxPerLine` from the container, and put the app's own figure in `px` for comparison.
 
 ## String fields
 
@@ -78,17 +79,23 @@ Measurement is done on the machine that runs the tool. If the family is not inst
 | `id` | string | required | Stable id from the app catalogue. Unique within the file. |
 | `text` | string | required | The string as it ships today. Single line. |
 | `where` | string | recommended | Where it is shown, in words a reviewer can act on. |
-| `maxPx` | number | recommended | Pixel width the line must not exceed. Greater than zero. |
+| `maxPxPerLine` | number | required | Width of one line: the box the text wraps inside. Greater than zero. |
+| `maxLines` | integer | recommended | How many lines the layout allows. Default 1. |
+| `maxPxTotal` | number | optional | Total budget, normally `maxPxPerLine × maxLines`. Recomputed when it disagrees. |
 | `maxChars` | integer | optional | Character ceiling, only when the app enforces one itself. |
-| `px` | number | optional | The app's own measurement. Only used as a budget when `maxPx` is absent. |
+| `px` | number | optional | The app's own measurement. Only used as a line budget when `maxPxPerLine` is absent. |
+| `font` | object | optional | Measurement override for this string: `family`, `size`, `weight`, `letterSpacing`. |
 | `state` | string | output only | `normal`, `wip` or `done`, written by the tool. Importers may ignore it; it exists so a diff shows what was reviewed. |
 
 Guidance that decides whether the export is useful:
 
 - **`id`** is a machine key, not a label. `transcripts.panel.title` merges; `Session Transcripts` does not.
 - **`where`** is the difference between a rewrite that fits and one that fits the wrong place. "Panel header, left of the refresh button" beats "header". It is shown on hover and included in the AI prompt.
-- **`maxPx`** is the space the layout gives the string: container width minus horizontal padding, in the font above. Not the current text width. A label in a 180px column with 12px of padding on each side has `maxPx: 156`.
-- **`text`** stays on one line. A string with a newline is measured at its widest line, since that is where it can wrap.
+- **`maxPxPerLine`** is the width of the box the text wraps inside: container width minus horizontal padding, in the file font. Not the current text width. A label in a 180px column with 12px of padding on each side has `maxPxPerLine: 156`.
+- **`maxLines`** is how many lines the layout gives the string. A single-line label is 1; a settings hint that may reflow is 2 or 3. Get it from the layout, never from how the current text happens to render: if the shipped string fits on one line and the layout allows two, `maxLines` is 2.
+- **`maxPxTotal`** is derived: `maxPxPerLine × maxLines`. Write it if the app already has a different total, and the tool reports the disagreement rather than silently believing it.
+- **`font`** per string is for the case where one string is not in the file font, for example a 16px semibold panel title in a file of 14px body labels. Omit it and the file font applies.
+- **`text`** may contain `\n` for a hard break. Each paragraph then wraps on its own.
 - Escape quotes and backslashes as JSON requires. Do not HTML-escape: `&amp;` is content, not syntax.
 
 ### Aliases
@@ -100,9 +107,12 @@ The loader accepts these in place of the canonical name. An exporter should not 
 | `id` | `key`, `name`, `textId`, `text_id`, `stringId`, `string_id` |
 | `text` | `value`, `string`, `source`, `current`, `content`, `en`, `default` |
 | `where` | `info`, `place`, `location`, `context`, `usedIn`, `used_in`, `note` |
-| `maxPx` | `maxPIL`, `maxPil`, `max_pil`, `max_px`, `pilMax`, `pil_max`, `maxWidth`, `max_width`, `max` |
+| `maxPxPerLine` | `maxPx`, `maxPIL`, `maxPil`, `max_pil`, `max_px`, `pilMax`, `pil_max`, `maxWidth`, `max_width`, `max` |
+| `maxLines` | `max_lines`, `lines`, `wrapLines`, `wrap_lines` |
+| `maxPxTotal` | `max_px_total`, `totalMaxPx`, `total_max_px`, `maxPxString`, `max_px_string` |
 | `maxChars` | `max_chars`, `maxLength`, `max_length`, `charLimit`, `char_limit`, `limit` |
 | `px` | `pil`, `PIL`, `width`, `measuredPx`, `measured_px` |
+| `font` | `textFont`, `text_font`, `typography` |
 | envelope `font` | `metrics`, `typography` |
 | envelope `strings` | `entries`, `items`, `messages`, `rows` |
 
@@ -117,15 +127,19 @@ Numbers accept a trailing `px` or `ch`. Snake_case works for every documented fi
 - `id` missing, empty, or not a string.
 - Duplicate `id`.
 - `text` missing or not a string.
-- `maxPx` present but not a number greater than zero.
+- `maxPxPerLine` present but not a number greater than zero.
+- `maxLines` present but not a whole number from 1 to 20.
+- `maxPxTotal` present but not a number greater than zero.
+- A per-string `font` with neither a family nor a size.
 - `maxChars` present but not a positive integer.
 - `font` present but `family` or `size` invalid.
 
 **Warnings** (loads, but say so):
 
 - No `font` block, so measurement is an estimate.
-- No `maxPx` and no `defaultMaxPx`, so nothing can be flagged as wrapping.
-- Some strings without a budget while others have one.
+- No `maxPxPerLine` and no `defaultMaxPxPerLine`, so nothing can be flagged as wrapping.
+- Some strings without a line budget while others have one.
+- `maxPxTotal` that is not `maxPxPerLine × maxLines`: the total is recomputed from the line budget.
 - Generated ids for entries that had none: those rewrites cannot merge back.
 - Duplicate ids suffixed `#2`, `#3` in the tool: only the first merges at the original id.
 - Empty `text`, or `text` longer than 2000 characters.
@@ -136,26 +150,40 @@ Numbers accept a trailing `px` or `ch`. Snake_case works for every documented fi
 
 Character count is `text.length`: UTF-16 code units. That is what the app's own length checks usually compare against. Grapheme clusters can differ for flags, combining accents and emoji sequences; if the app counts graphemes, expect off-by-one differences.
 
-PIL is rendered pixel length: a canvas `measureText` call with the declared font at the declared size and weight, letter spacing applied per character, rounded to one decimal and shown as a whole number. For a multi-line string it is the widest line.
+PIL is rendered pixel length: a canvas `measureText` call with the declared font at the declared size and weight, letter spacing applied per character, rounded to one decimal. The tool does not measure the whole string as one run. It wraps the text at spaces inside `maxPxPerLine`, exactly as the layout would, and then reports three things: the number of lines, the width of the widest line, and the width of the last line.
 
-It models a single-line label well. It cannot know about:
+It models a single run of text well. It cannot know about:
 
 - kerning between glyphs that fall back to a different face,
 - subpixel positioning and font hinting on the target OS,
-- container padding, borders, or an ellipsis the app adds itself.
+- container padding, borders, or an ellipsis the app adds itself,
+- a layout that hyphenates or breaks inside words. A word wider than the box is reported as an overflow, because that is what happens without hyphenation.
 
 Treat PIL as a tight guardrail, not a promise. A string at 100% of its budget in this tool may still wrap if the app renders with a different face.
+
+## Lines and the wrap law
+
+The budget is a box, not a total. `maxPxPerLine` is the width available to a line, `maxLines` is how many lines the layout allows, and `maxPxTotal` is `maxPxPerLine × maxLines` for convenience. A string that needs more lines than `maxLines` spills, however short its widest line is.
+
+Wrapping is greedy at word boundaries, in the declared font. On top of the line count, the tool applies the rule from the string authoring work:
+
+- **The last line must fill at least 40% of the box.** A last line at 12% of 320px is an orphan: the reader sees one stranded word.
+- **A last line of one word is a leak even when that word is wide.** Put another word on it, or do not wrap at all.
+- Fixing an orphan means rebalancing the words, not shrinking the type, hyphenating, or padding with filler.
+- A single-line string is exempt: there is no last line to judge.
+
+The row shows the line count against the allowance (`2 / 2`) and, when the last line is thin, the percentage it fills (`orphan 23%`). A red row means it spills: either a line is wider than the box or the text needs more lines than the layout gives.
 
 Verdicts:
 
 | Verdict | Condition | Meaning |
 | --- | --- | --- |
-| `ok` (green) | below the amber threshold | Fits with headroom. |
-| `near` (amber) | at or above the threshold, up to budget | Fits now; a longer word, a translation or a larger UI scale spills. |
-| `over` (red) | past `maxPx` | The line wraps where the app expected one line. |
-| `none` | no budget | No verdict possible. |
+| `ok` (green) | fits, and either one line or a last line over 40% | Fine as it is. |
+| `near` (amber) | fits, but the last line is an orphan, or a line is at or above the amber threshold of the box | Fits now; reads badly at a line break, or a longer word spills it. |
+| `over` (red) | a line is wider than `maxPxPerLine`, or the text needs more lines than `maxLines` | It will wrap where the app expected otherwise. |
+| `none` | no line budget | No verdict possible. |
 
-The amber threshold is a tool setting, 90% by default. `maxChars`, when present, produces its own verdict for the characters meter; otherwise that meter mirrors the pixel verdict.
+The amber threshold for line width is a tool setting, 90% by default. The 40% last-line rule is not configurable: it is the authoring standard the strings are expected to meet.
 
 ## What comes back
 
@@ -172,9 +200,12 @@ The amber threshold is a tool setting, 90% by default. `maxChars`, when present,
       "text": "Transcripts for this session",
       "previous": "Session Transcripts",
       "where": "Transcript panel header, left of the refresh button",
-      "maxPx": 150,
+      "maxPxPerLine": 150,
+      "maxLines": 1,
+      "maxPxTotal": 150,
       "maxChars": 22,
-      "changed": true
+      "changed": true,
+      "state": "done"
     }
   ]
 }
@@ -211,12 +242,15 @@ For schema validation in another toolchain, point it at [`string-theory.schema.j
 The work is enumeration and measurement, not formatting.
 
 ```js
-const strings = catalogue.map(({ id, text, where, maxPx, maxChars }) => ({
+const strings = catalogue.map(({ id, text, where, maxPxPerLine, maxLines, maxChars, font }) => ({
   id,
   text,
   where,
-  maxPx,
-  ...(maxChars ? { maxChars } : {})
+  maxPxPerLine,
+  maxLines,
+  maxPxTotal: maxPxPerLine * maxLines,
+  ...(maxChars ? { maxChars } : {}),
+  ...(font ? { font } : {})
 }))
 
 const file = {
@@ -224,7 +258,7 @@ const file = {
   app: 'Session Transcripts',
   context: 'Foundry VTT module settings and transcript panel',
   font: { family: 'Segoe UI', size: 14, weight: 400, letterSpacing: 0 },
-  defaultMaxPx: 200,
+  defaultMaxPxPerLine: 200,
   strings
 }
 
@@ -236,13 +270,17 @@ Where the values come from:
 - **id**: whatever the app already uses to look strings up. If it has none, derive a stable one from the feature and the role (`settings.retention`) and never rename it afterwards.
 - **text**: the shipped value, not the designer's copy in another document.
 - **where**: written by whoever built the screen. A one-line comment per string is enough; inventing a location is worse than leaving it out.
-- **maxPx**: from the layout. Fixed column widths give a number directly. Responsive layouts give the narrowest breakpoint's width, because that is where it wraps first.
+- **maxPxPerLine**: from the layout. Fixed column widths give a number directly. Responsive layouts give the narrowest breakpoint's width, because that is where it wraps first.
+- **maxLines**: from the layout too. A single-line control is 1. A hint under a settings row that may reflow is 2, occasionally 3. Look at the container's height and line-height, not at how the current text renders.
+- **maxPxTotal**: `maxPxPerLine × maxLines`. Write it when a downstream consumer wants a single number.
 - **maxChars**: only if the app itself rejects longer strings.
-- **font**: the same family, size and weight the widget uses. Read it from the theme, do not retype it.
+- **font**: the same family, size and weight the widget uses. Read it from the theme, do not retype it. Per string only when that string differs from the file font.
 
 ### Anti-patterns
 
-- **Character budgets dressed as pixels.** `maxPx: text.length * 7` guarantees the tool approves what already exists.
+- **Character budgets dressed as pixels.** `maxPxPerLine: text.length * 7` guarantees the tool approves what already exists.
+- **`maxLines` from the current render.** If the text happens to fit on one line today, that is not evidence the layout only allows one.
+- **A total without a line budget.** `maxPxTotal` alone cannot be checked for wrap; the line width is what decides.
 - **A single global font when the app uses several.** Split into one file per surface, or use the dominant font and say so in `context`.
 - **`where` copied from the key.** `transcripts.panel.title` is not a location.
 - **Every string, including debug and log messages.** They do not have a layout budget, so they cannot be judged. Export what a user reads.

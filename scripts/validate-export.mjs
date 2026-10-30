@@ -88,13 +88,22 @@ if (envelope) {
       add('error', 'defaultMaxPx', 'must be a number greater than zero')
     }
   }
+  if (envelope.defaultMaxPxPerLine !== undefined) {
+    if (typeof envelope.defaultMaxPxPerLine !== 'number' || !(envelope.defaultMaxPxPerLine > 0)) {
+      add('error', 'defaultMaxPxPerLine', 'must be a number greater than zero')
+    }
+  }
 }
 
 const ids = new Map()
 let missingBudget = 0
 let missingWhere = 0
 const defaultBudget =
-  envelope && typeof envelope.defaultMaxPx === 'number' && envelope.defaultMaxPx > 0 ? envelope.defaultMaxPx : undefined
+  envelope && typeof envelope.defaultMaxPxPerLine === 'number' && envelope.defaultMaxPxPerLine > 0
+    ? envelope.defaultMaxPxPerLine
+    : envelope && typeof envelope.defaultMaxPx === 'number' && envelope.defaultMaxPx > 0
+      ? envelope.defaultMaxPx
+      : undefined
 
 if (list) {
   if (!list.length) add('error', 'strings', 'array is empty')
@@ -124,11 +133,45 @@ if (list) {
     if (entry.where !== undefined && typeof entry.where !== 'string') add('error', `${path}.where`, 'must be a string')
     if (!entry.where) missingWhere += 1
 
-    const maxPx = entry.maxPx ?? entry.maxPIL ?? entry.pilMax
+    const maxPx = entry.maxPxPerLine ?? entry.maxPx ?? entry.maxPIL ?? entry.pilMax
     if (maxPx !== undefined) {
-      if (typeof maxPx !== 'number' || !(maxPx > 0)) add('error', `${path}.maxPx`, 'must be a number greater than zero')
+      if (typeof maxPx !== 'number' || !(maxPx > 0)) add('error', `${path}.maxPxPerLine`, 'must be a number greater than zero')
     } else if (defaultBudget === undefined) {
       missingBudget += 1
+    }
+
+    const maxLines = entry.maxLines ?? entry.lines
+    if (maxLines !== undefined) {
+      if (!Number.isInteger(maxLines) || maxLines < 1 || maxLines > 20) {
+        add('error', `${path}.maxLines`, 'must be a whole number from 1 to 20')
+      }
+    }
+
+    if (entry.maxPxTotal !== undefined) {
+      if (typeof entry.maxPxTotal !== 'number' || !(entry.maxPxTotal > 0)) {
+        add('error', `${path}.maxPxTotal`, 'must be a number greater than zero')
+      } else if (typeof maxPx === 'number' && typeof maxLines === 'number') {
+        const derived = maxPx * maxLines
+        if (Math.abs(entry.maxPxTotal - derived) > 2) {
+          add('warn', `${path}.maxPxTotal`, `is ${entry.maxPxTotal} but maxPxPerLine × maxLines is ${derived}; the tool recomputes it`)
+        }
+      }
+    }
+
+    if (entry.font !== undefined) {
+      const font = entry.font
+      if (!font || typeof font !== 'object' || Array.isArray(font)) add('error', `${path}.font`, 'must be an object')
+      else {
+        if (font.family !== undefined && (typeof font.family !== 'string' || !font.family.trim())) {
+          add('error', `${path}.font.family`, 'must be a non-empty string')
+        }
+        if (font.size !== undefined && (typeof font.size !== 'number' || !(font.size > 0))) {
+          add('error', `${path}.font.size`, 'must be a number greater than zero')
+        }
+        if (font.family === undefined && font.size === undefined) {
+          add('warn', `${path}.font`, 'an override needs a family or a size to mean anything')
+        }
+      }
     }
 
     const maxChars = entry.maxChars ?? entry.maxLength ?? entry.limit

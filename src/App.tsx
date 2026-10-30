@@ -19,7 +19,7 @@ import type {
 } from './types'
 import { api } from './lib/api'
 import { DEFAULT_FONT, parseExport } from './lib/format'
-import { charFit, fitOf, measurePx, worstFit } from './lib/metrics'
+import { charFit, measurePx, wrapFit, wrapText, worstFit } from './lib/metrics'
 import { FilterBar, TopBar, type FilterId } from './components/TopBar'
 import { StringRow } from './components/StringRow'
 import { StatusBar } from './components/StatusBar'
@@ -475,14 +475,16 @@ export default function App() {
             id: row.id,
             text: row.text,
             where: row.where,
-            maxPx: row.maxPx,
+            maxPx: row.maxPxPerLine,
+            maxPxPerLine: row.maxPxPerLine,
+            maxLines: row.maxLines,
             maxChars: row.maxChars,
-            px: measurePx(row.text, current.font),
+            px: measurePx(row.text, row.font ?? current.font),
             appContext: current.context
           },
           mode,
           app: current.app,
-          font: current.font
+          font: row.font ?? current.font
         })
         setRows((list) =>
           list.map((entry) =>
@@ -501,17 +503,24 @@ export default function App() {
 
   // ------------------------------------------------------------ derived
 
-  const font = meta?.font ?? DEFAULT_FONT
   const warnRatio = payload?.config.warnRatio ?? 0.9
 
   const decorated = useMemo(() => {
     return rows.map((row) => {
-      const afterPx = measurePx(row.text, font)
-      const pxFit = fitOf(afterPx, row.maxPx, warnRatio)
-      const chFit = charFit(row.text.length, row.maxChars, pxFit, warnRatio)
-      return { row, fit: worstFit(pxFit, chFit), changed: row.text !== row.source }
+      const rowFont = row.font ?? meta?.font ?? DEFAULT_FONT
+      const wrap = wrapText(row.text, row.maxPxPerLine, rowFont)
+      const pxFit = wrapFit(wrap, { maxPxPerLine: row.maxPxPerLine, maxLines: row.maxLines }, warnRatio)
+      const chFit = charFit(row.text.length, row.maxChars, pxFit.fit, warnRatio)
+      return {
+        row,
+        font: rowFont,
+        wrap,
+        pxFit,
+        fit: worstFit(pxFit.fit, chFit),
+        changed: row.text !== row.source
+      }
     })
-  }, [rows, font, warnRatio])
+  }, [rows, meta, warnRatio])
 
   const counts = useMemo(() => {
     const base: Record<FilterId, number> = { all: decorated.length, normal: 0, wip: 0, done: 0, near: 0, over: 0 }
@@ -600,8 +609,11 @@ export default function App() {
         text: row.text,
         previous: row.source,
         where: row.where,
-        maxPx: row.maxPx,
+        maxPxPerLine: row.maxPxPerLine,
+        maxLines: row.maxLines,
+        maxPxTotal: row.maxPxTotal,
         maxChars: row.maxChars,
+        ...(row.font ? { font: row.font } : {}),
         changed: row.text !== row.source,
         state: row.state
       }))
@@ -769,7 +781,9 @@ export default function App() {
               <StringRow
                 key={entry.row.key}
                 row={entry.row}
-                font={font}
+                font={entry.font}
+                wrap={entry.wrap}
+                wrapFit={entry.pxFit}
                 warnRatio={warnRatio}
                 canPolish={providerReady}
                 onEdit={onEdit}

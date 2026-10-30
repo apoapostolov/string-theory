@@ -49,11 +49,11 @@ Prod serves `dist/` and the API from one process on 4317, with no Vite and no ho
 
 1. Open the **Sources** picker next to the wordmark. It lists every export in the inbox folder, plus anything opened from disk. Pick one; the sample is available from the empty state if the inbox is empty.
 2. Read the source on the left. Hovering it shows the full location line, the pixel budget and the font the measurement uses.
-3. Type the rewrite on the right. The **chars** and **PIL** counters under the input compare the source value with the current one:
-   - green, comfortably inside the budget
-   - amber, past the threshold (90% by default), close enough that a translation or a bigger UI scale will spill
-   - red, measured past `maxPx`, so the line will wrap where the app expected one line
-   The PIL meter prints how many pixels over the limit you are when it goes red.
+3. Type the rewrite on the right. The **chars** and **line** counters under the input compare the source value with the current one, and a **lines** readout shows the wrap:
+   - green, fits, and either one line or a last line that fills at least 40% of the box
+   - amber, fits but reads badly at the break (an orphan last line), or a line is within 10% of the box
+   - red, a line is wider than the box or the text needs more lines than the layout allows
+   The line meter prints the overflow in pixels; the lines readout prints `orphan 23%` when the last line is stranded.
 
    ![Close to limit filter showing a single amber row](docs/screenshot-close-to-limit.png)
 4. **Polish** sends one string to the connected AI provider for a grammar and style pass. The caret beside it runs Grammar, Style or Fit instead of the default pass. `Ctrl+Enter` inside an input does the same, `Esc` reverts that row.
@@ -122,20 +122,23 @@ The full field reference, accepted aliases and the merge rule are in [docs/forma
   "format": "string-theory/1",
   "app": "Session Transcripts",
   "font": { "family": "Segoe UI", "size": 14, "weight": 400 },
-  "defaultMaxPx": 200,
+  "defaultMaxPxPerLine": 200,
   "strings": [
     {
       "id": "panel.title",
       "text": "Session Transcripts",
       "where": "Panel header, left of the refresh button",
-      "maxPx": 180,
+      "maxPxPerLine": 180,
+      "maxLines": 1,
       "maxChars": 24
     }
   ]
 }
 ```
 
-`font` is not decoration. The pixel figures come from measuring each string in that font with a canvas, so the export has to declare what the app really renders with. If the family is not installed on this machine the browser substitutes one, and the settings panel says so.
+`font` is not decoration. The pixel figures come from measuring each string in that font with a canvas, so the export has to declare what the app really renders with. If the family is not installed on this machine the browser substitutes one, and the settings panel says so. A string that is not in the file font can carry its own `font`.
+
+`maxPxPerLine` is the box a line wraps inside; `maxLines` is how many lines the layout gives the string; `maxPxTotal` is their product. A string that needs more lines than allowed is red, and a last line that carries one word or fills less than 40% of the box is an orphan, flagged amber. That 40% rule is the one from the string authoring standard, and it is not a setting: rebalance the words instead of shrinking the type.
 
 The contract, the aliases a rough exporter can get away with, the validity rules and the merge algorithm are in [docs/format.md](docs/format.md). The machine-readable version is [docs/string-theory.schema.json](docs/string-theory.schema.json), and any file can be checked before it is handed over:
 
@@ -159,7 +162,7 @@ Providers whose OAuth is a subscription or a first-party CLI session (OpenAI's C
 
 Every call is logged to `data/usage.json` with token counts and an estimated cost. The pricing table covers OpenAI, Anthropic, DeepSeek and `openrouter/free`; other providers record tokens but no cost, and the settings panel warns when today's calls cannot be priced. Daily and monthly USD budgets stop the polish calls when they are reached.
 
-The prompt sends the string, its id, the location line, the measured width and a character budget derived from `maxPx`. Placeholders, shortcuts and product names are copied byte for byte, and the answer is trimmed of fences and stray quotes before it lands in the input. A rewrite is never trusted to fit: it is measured again, and goes red like any manual edit.
+The prompt sends the string, its id, the location line, the widest measured line, the line budget and the line count, plus a character budget derived from both. Placeholders, shortcuts and product names are copied byte for byte, and the answer is trimmed of fences and stray quotes before it lands in the input. A rewrite is never trusted to fit: it is measured again, and goes red like any manual edit.
 
 ## Data and privacy
 

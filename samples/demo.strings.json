@@ -2,104 +2,130 @@
   "format": "string-theory/1",
   "app": "Session Transcripts",
   "context": "Foundry VTT module settings and transcript panel",
-  "font": { "family": "Segoe UI", "size": 14, "weight": 400, "letterSpacing": 0 },
-  "defaultMaxPx": 200,
+  "font": {
+    "family": "Segoe UI",
+    "size": 14,
+    "weight": 400,
+    "letterSpacing": 0
+  },
+  "defaultMaxPxPerLine": 200,
   "strings": [
     {
       "id": "transcripts.panel.title",
       "text": "Session Transcripts",
       "where": "Transcript panel header, left of the refresh button",
-      "maxPx": 150
+      "maxPxPerLine": 150,
+      "maxLines": 1,
+      "font": {
+        "family": "Segoe UI",
+        "size": 16,
+        "weight": 600
+      }
     },
     {
       "id": "transcripts.record.start",
       "text": "Start recording",
       "where": "Transcript toolbar, primary button next to the timer",
-      "maxPx": 120
+      "maxPxPerLine": 120,
+      "maxLines": 1
     },
     {
       "id": "transcripts.record.stop",
       "text": "Stop",
       "where": "Transcript toolbar, replaces Start while capture runs",
-      "maxPx": 60
+      "maxPxPerLine": 60,
+      "maxLines": 1
     },
     {
       "id": "transcripts.status.idle",
       "text": "Ready. Audio stays on this machine.",
       "where": "Status line under the transcript list, empty state",
-      "maxPx": 200
+      "maxPxPerLine": 155,
+      "maxLines": 2
     },
     {
       "id": "transcripts.settings.model",
       "text": "Transcription model",
       "where": "Module settings, first row of the capture group",
-      "maxPx": 160
+      "maxPxPerLine": 160,
+      "maxLines": 1
     },
     {
       "id": "settings.providers.hint",
       "text": "Cloud providers are opt-in. Foundry never hears the audio.",
       "where": "Provider settings, helper text under the opt-in toggle",
-      "maxPx": 320
+      "maxPxPerLine": 225,
+      "maxLines": 2
     },
     {
       "id": "buttons.cancel",
       "text": "Cancel",
       "where": "Upload dialog footer, left of Save",
-      "maxPx": 80
+      "maxPxPerLine": 80,
+      "maxLines": 1
     },
     {
       "id": "buttons.save",
       "text": "Save changes",
       "where": "Upload dialog footer, primary action",
-      "maxPx": 110
+      "maxPxPerLine": 110,
+      "maxLines": 1
     },
     {
       "id": "errors.noAudio",
       "text": "No audio device was found. Pick another input in Settings.",
       "where": "Toast shown when capture cannot open the default microphone",
-      "maxPx": 300
+      "maxPxPerLine": 300,
+      "maxLines": 2
     },
     {
       "id": "errors.upload",
       "text": "The recording could not be uploaded. Check the connection then try again.",
       "where": "Upload dialog, inline error below the drop zone",
-      "maxPx": 340
+      "maxPxPerLine": 340,
+      "maxLines": 2
     },
     {
       "id": "menu.export",
       "text": "Export transcripts",
       "where": "Transcript header overflow menu, third item",
-      "maxPx": 170
+      "maxPxPerLine": 170,
+      "maxLines": 1
     },
     {
       "id": "menu.import",
       "text": "Import transcripts",
       "where": "Transcript header overflow menu, fourth item",
-      "maxPx": 170
+      "maxPxPerLine": 170,
+      "maxLines": 1
     },
     {
       "id": "chapter.summary",
       "text": "Chapter summary",
       "where": "Chapter card heading in the journal sidebar",
-      "maxPx": 150
+      "maxPxPerLine": 150,
+      "maxLines": 1
     },
     {
       "id": "chapter.generate",
       "text": "Generate summary",
       "where": "Chapter card action, right aligned",
-      "maxPx": 150
+      "maxPxPerLine": 96,
+      "maxLines": 1
     },
     {
       "id": "settings.retention",
       "text": "Keep recordings for 30 days",
       "where": "Storage settings, label beside the retention select",
-      "maxPx": 180
+      "maxPxPerLine": 180,
+      "maxLines": 1
     },
     {
       "id": "settings.retentionHint",
       "text": "Recordings older than the retention window are deleted at midnight.",
       "where": "Storage settings, helper text under the retention select",
-      "maxPx": 380,
+      "maxPxPerLine": 300,
+      "maxLines": 2,
       "maxChars": 68
     }
   ]

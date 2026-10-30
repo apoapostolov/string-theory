@@ -10,8 +10,15 @@ export type ParsedRow = {
   id: string
   source: string
   where: string
-  maxPx: number | null
+  /** Width one line may occupy before it wraps. */
+  maxPxPerLine: number | null
+  /** How many lines the layout gives the string. */
+  maxLines: number
+  /** maxPxPerLine × maxLines, or the declared total when there is no line budget. */
+  maxPxTotal: number | null
   maxChars: number | null
+  /** Measurement override for a string that does not use the file font. */
+  font: FontMetrics | null
 }
 
 export type ImportIssue = {
@@ -25,6 +32,8 @@ export type ImportIssue = {
     | 'duplicate-id'
     | 'bad-default-max-px'
     | 'bad-max-px'
+    | 'bad-max-lines'
+    | 'inconsistent-max-px'
     | 'bad-max-chars'
     | 'no-max-px'
     | 'partial-max-px'

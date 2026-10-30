@@ -16,6 +16,8 @@ export type PolishRequest = {
     text: string
     where: string
     maxPx: number | null
+    maxPxPerLine?: number | null
+    maxLines?: number
     maxChars: number | null
     px: number
     appContext?: string

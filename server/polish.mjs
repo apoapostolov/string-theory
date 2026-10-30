@@ -41,7 +41,11 @@ export function estimateChars(font, maxPx) {
 
 export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt }) {
   const setting = getMode(mode)
-  const { perChar, hard, comfortable } = estimateChars(font, item.maxPx || 200)
+  const perLine = item.maxPxPerLine ?? item.maxPx ?? 200
+  const maxLines = Math.max(1, Number(item.maxLines) || 1)
+  // A character budget for the whole string: every line gets the same box.
+  const { perChar, hard, comfortable } = estimateChars(font, perLine * maxLines)
+  const perLineChars = estimateChars(font, perLine).comfortable
   const fontLine = font
     ? `${font.family} ${font.size}px${font.weight ? ` ${font.weight}` : ''}`
     : 'the app default UI font'
@@ -57,8 +61,11 @@ export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt })
     '- Sentence case unless the original used a different casing. No trailing period on buttons, labels or headings.',
     '- Prefer concrete verbs and plain words. Cut filler, hedging and marketing adjectives.',
     '- Never invent features, numbers, prices or states that the original does not state.',
-    `- Width budget: the string renders in ${fontLine} and must not exceed ${item.maxPx || 200}px.`,
-    `- That is about ${hard} characters in this font. Aim for ${comfortable} or fewer.`,
+    `- Width budget: the string renders in ${fontLine} and wraps inside a ${perLine}px box, with at most ${maxLines} line${maxLines === 1 ? '' : 's'}.`,
+    `- That is about ${perLineChars} characters per line, so no more than ${hard} characters in total. Aim for ${comfortable} or fewer.`,
+    maxLines > 1
+      ? '- If it wraps, the last line must fill at least 40% of the box and carry at least two words. A one-word last line is a defect, not a fit.'
+      : '- Keep it on one line: a wrap is a defect.',
     `- The string is shown here: ${item.where || 'not specified'}.`,
     contextLine && item.appContext ? `- Screen context: ${item.appContext}` : null,
     extraPrompt ? `- Extra instruction from the operator: ${extraPrompt}` : null,
@@ -69,13 +76,13 @@ export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt })
     .filter(Boolean)
     .join('\n')
 
-  const measured = item.px ? `, measured at ${Math.round(item.px)}px` : ''
+  const measured = item.px ? `, widest line measured at ${Math.round(item.px)}px` : ''
   const chars = item.text.length
   const user = [
     `id: ${item.id}`,
     item.where ? `shown at: ${item.where}` : null,
     `current: ${item.text}`,
-    `length: ${chars} characters${measured}, budget ${item.maxPx || 200}px (~${hard} characters)`,
+    `length: ${chars} characters${measured}, budget ${perLine}px per line${maxLines > 1 ? ` across up to ${maxLines} lines` : ''} (~${hard} characters)`,
     item.maxChars ? `export character limit: ${item.maxChars}` : null
   ]
     .filter(Boolean)

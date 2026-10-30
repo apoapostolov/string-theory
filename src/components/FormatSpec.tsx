@@ -11,13 +11,15 @@ const EXAMPLE = `{
   "app": "Session Transcripts",
   "context": "Foundry VTT module settings and transcript panel",
   "font": { "family": "Segoe UI", "size": 14, "weight": 400, "letterSpacing": 0 },
-  "defaultMaxPx": 200,
+  "defaultMaxPxPerLine": 200,
   "strings": [
     {
       "id": "transcripts.panel.title",
       "text": "Session Transcripts",
-      "where": "Transcript panel header, left of the refresh button",
-      "maxPx": 150,
+      "where": "Panel header, left of the refresh button",
+      "maxPxPerLine": 150,
+      "maxLines": 1,
+      "maxPxTotal": 150,
       "maxChars": 22
     }
   ]
@@ -28,21 +30,24 @@ const ENVELOPE: Array<[string, string, string, string]> = [
   ['app', 'string', 'recommended', 'Application name. Shown in the header, used for the export filename.'],
   ['context', 'string', 'optional', 'One line about the screen or feature. Sent with every AI prompt.'],
   ['font', 'object', 'required', 'The font the pixel figures mean. Required for correct numbers: without it the tool falls back to 14px system text and says so.'],
-  ['defaultMaxPx', 'number', 'optional', 'Budget for strings that do not carry their own maxPx.'],
+  ['defaultMaxPxPerLine', 'number', 'optional', 'Line budget for strings that do not carry their own.'],
   ['strings', 'array', 'required', 'The strings. A bare array also loads.']
 ]
 
 const FIELDS: Array<[string, string, string, string]> = [
   ['id', 'string', 'required', 'Stable id from the app catalogue. Unique per file.'],
-  ['text', 'string', 'required', 'The string as it ships today.'],
+  ['text', 'string', 'required', 'The string as it ships today. A newline is a hard break.'],
   ['where', 'string', 'recommended', 'The line of UI where it appears. Hover shows it; prompts carry it.'],
-  ['maxPx', 'number', 'recommended', 'Pixel width the line must not exceed, measured in the file font.'],
+  ['maxPxPerLine', 'number', 'required', 'Width of one line: the box the text wraps inside, in the file font.'],
+  ['maxLines', 'number', 'recommended', 'How many lines the layout allows. 1 for labels, 2 or 3 for hints.'],
+  ['maxPxTotal', 'number', 'optional', 'maxPxPerLine x maxLines. Recomputed when it disagrees.'],
+  ['font', 'object', 'optional', 'Override for a string that is not in the file font, for example a 16px title.'],
   ['maxChars', 'number', 'optional', 'Character ceiling, only when the app enforces one itself.'],
   ['state', 'string', 'output', 'normal, wip or done. Written by the tool; importers may ignore it.']
 ]
 
 const ALIASES =
-  'key, name, textId · value, string, source, current · info, place, location, context · maxPIL, pil_max, maxWidth · maxLength, charLimit'
+  'key, name, textId · value, string, source · info, place, location · maxPx, maxPIL, pil_max · lines, wrapLines · totalMaxPx · maxLength, charLimit'
 
 function Section({ title, children, hint }: { title: string; children: React.ReactNode; hint?: string }) {
   return (
@@ -159,12 +164,13 @@ export function FormatSpec({ open, onClose }: Props) {
                 <span className="text-fg">Order is preserved.</span> Rows keep the catalogue order in, and the export keeps it out.
               </li>
               <li>
-                <span className="text-fg">maxPx is a width, not a character count.</span> Use the container width minus its padding,
-                not the current text width.
+                <span className="text-fg">maxPxPerLine is a width, not a character count.</span> Use the container width minus its
+                padding, and set <span className="font-mono">maxLines</span> from the layout, not from how the current text
+                happens to render.
               </li>
               <li>
-                <span className="text-fg">Keep text on one line.</span> A string with a newline is measured at its widest line, since
-                that is where it can wrap.
+                <span className="text-fg">Newlines are hard breaks.</span> Each paragraph then wraps on its own inside the line
+                budget, so a deliberate break stays where the app will show it.
               </li>
               <li>
                 <span className="text-fg">Placeholders are copied byte for byte.</span> <span className="font-mono">{'{0}'}</span>,{' '}
@@ -177,22 +183,49 @@ export function FormatSpec({ open, onClose }: Props) {
             </ul>
           </Section>
 
+          <Section
+            title="Lines, not a total"
+            hint="The budget is the box a line wraps inside, and how many lines the layout gives it. The total is just the product."
+          >
+            <ul className="space-y-1.5">
+              <li>
+                <span className="text-fg">A wrap is measured, not guessed.</span> The text is wrapped at spaces inside{' '}
+                <span className="font-mono">maxPxPerLine</span> in the file font, and the tool reports the line count, the
+                widest line and the width of the last line.
+              </li>
+              <li>
+                <span className="text-fg">Over is a spill.</span> A line wider than the box, or more lines than{' '}
+                <span className="font-mono">maxLines</span>, turns the row red however short the widest line is.
+              </li>
+              <li>
+                <span className="text-fg">The last line must fill 40% of the box.</span> One stranded word is an orphan, and
+                so is a last line that fills less than 40%: the row goes amber and prints{' '}
+                <span className="font-mono">orphan 23%</span>. Rebalance the words; never shrink the type or hyphenate to
+                hide it.
+              </li>
+              <li>
+                <span className="text-fg">Single lines are exempt.</span> With one line there is no last line to judge.
+              </li>
+            </ul>
+          </Section>
+
           <Section title="How the numbers read">
             <ul className="space-y-1.5">
               <li>
-                <span className="text-ok">Green</span>: below the amber threshold, 90% of the pixel budget by default.
+                <span className="text-ok">Green</span>: fits, and either one line or a last line over 40%.
               </li>
               <li>
-                <span className="text-near">Amber</span>: close enough that a longer word, a translation or a larger UI scale pushes
-                it over.
+                <span className="text-near">Amber</span>: fits, but the last line is an orphan, or a line is at the amber
+                threshold of the box.
               </li>
               <li>
-                <span className="text-over">Red</span>: measured past maxPx, so the line wraps where the app expected one line. The
-                meter prints the overflow in pixels.
+                <span className="text-over">Red</span>: a line is wider than <span className="font-mono">maxPxPerLine</span>{' '}
+                or the text needs more lines than <span className="font-mono">maxLines</span>. The meter prints the overflow in
+                pixels and the row prints how many lines it needs.
               </li>
               <li>
-                The chars meter uses <span className="font-mono">maxChars</span> when the export has one, otherwise it mirrors the
-                pixel verdict.
+                The chars meter uses <span className="font-mono">maxChars</span> when the export has one, otherwise it mirrors
+                the wrap verdict.
               </li>
             </ul>
           </Section>
@@ -207,7 +240,8 @@ export function FormatSpec({ open, onClose }: Props) {
     "id": "transcripts.panel.title",
     "text": "Transcripts for this session",   // the rewrite
     "previous": "Session Transcripts",         // what it replaced
-    "where": "...", "maxPx": 150, "maxChars": 22,
+    "where": "...", "maxPxPerLine": 150, "maxLines": 1,
+    "maxPxTotal": 150, "maxChars": 22,
     "changed": true, "state": "done"
   }
 ]`}
@@ -225,7 +259,7 @@ export function FormatSpec({ open, onClose }: Props) {
             </pre>
             <p className="mt-2 text-[11.5px] leading-relaxed text-fg-faint">
               Errors block an export: no strings array, an id that is not a string, a budget that is not a number. Warnings still
-              load: missing font, missing maxPx, generated ids, duplicate ids.
+              load: missing font, missing maxPxPerLine, generated ids, duplicate ids.
             </p>
           </Section>
 

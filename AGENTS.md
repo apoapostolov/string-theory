@@ -63,6 +63,8 @@ There is no test framework. `scripts/smoke.mjs` is the integration test: it star
 - Issue codes in `src/types.ts` are a closed set. A new repair needs a code, a message in the loader, and a row in the validity table in `docs/format.md`.
 - Never merge by position or by text. Rewrites join on `id`; `previous` is what makes conflict detection possible, so it is always written.
 - Measurement lives in `src/lib/metrics.ts`. No second `measureText` call anywhere, and no character-count approximation dressed up as a pixel figure.
+- The budget is a box, not a total. `maxPxPerLine` is the line width, `maxLines` the allowance, `maxPxTotal` their product. A string that needs more lines than allowed is `over`; so is a line wider than the box.
+- The 40% last-line rule in `wrapFit` is the authoring standard, not a preference: a last line of one word, or under 40% of the box, is an orphan. Never soften it to make a row green, and never fix it by shrinking type or hyphenating.
 - The AI result is measured like any manual edit. Never trust a model to have respected a budget.
 
 ## Docs live in four places
@@ -105,6 +107,6 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 1. `npm run build` clean.
 2. `npm run serve:status` healthy, then `npm run smoke` at 19/19.
 3. `node scripts/validate-export.mjs samples/demo.strings.json` valid.
-4. Load the app, load the sample, and check the three bands still render: green row, amber row, red row with an overflow figure.
+4. Load the app, load the sample, and check the bands: one red row (lay out the lines), one amber orphan with its percentage, green rows with a clean two-line wrap, and the per-string 16px title measuring wider than the 14px rows.
 5. Put two files in `inbox/`, open both, edit one, switch, reload: the picker must show both progress numbers and the edits must survive.
 6. Any format change: re-read the four homes above and diff them against each other.
