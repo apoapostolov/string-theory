@@ -3,7 +3,25 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Internal string rewriting studio: load an app's exported strings, rewrite each one to fit its pixel budget, export the replacements.",
+  "description": "A local string-editing studio: rewrite an app's exported UI strings against real pixel budgets, then export the replacements.",
+  "license": "MIT",
+  "author": "Apostol Apostolov",
+  "homepage": "https://github.com/apoapostolov/string-theory#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apoapostolov/string-theory.git"
+  },
+  "keywords": [
+    "ui-strings",
+    "copywriting",
+    "pixel-measurement",
+    "line-wrap",
+    "local-first",
+    "string-editing"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "node scripts/serve.mjs --mode dev",
     "serve": "node scripts/serve.mjs",

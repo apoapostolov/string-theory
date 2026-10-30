@@ -28,6 +28,11 @@ type Props = {
   onUsage: () => void
 }
 
+/** The file opens with front matter for the skill; the panel already shows it. */
+function stripFrontmatter(markdown: string): string {
+  return markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
+}
+
 function inline(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
   return parts.map((part, index) => {
@@ -303,7 +308,7 @@ export function StylePanel({
                   ) : null}
                 </div>
                 <div className="max-h-[52vh] overflow-y-auto rounded-lg border border-line bg-ink-950/60 px-4 py-3">
-                  <Markdown text={shown} />
+                  <Markdown text={stripFrontmatter(shown)} />
                 </div>
                 {result ? (
                   <p className="mt-2 font-mono text-[10.5px] break-all text-fg-faint">{result.path}</p>
@@ -436,7 +441,9 @@ export function StylePanel({
               </p>
             )}
             <div className="mt-3 rounded-lg border border-line bg-ink-850 px-2.5 py-2">
-              <p className="font-mono text-[10px] break-all text-fg-faint">{profilesDir || 'profiles'}</p>
+              <p className="truncate font-mono text-[10px] text-fg-faint" title={profilesDir}>
+                {profilesDir ? profilesDir.split(/[\\/]/).filter(Boolean).pop() : 'profiles'}
+              </p>
             </div>
           </aside>
         </div>

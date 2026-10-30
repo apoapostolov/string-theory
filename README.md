@@ -1,12 +1,85 @@
-# String Theory
+<p align="center">
+  <img src="docs/banner.png" alt="String Theory: rewrite an app's UI strings against the pixel budget the layout gives them" width="100%">
+</p>
 
-An internal tool for rewriting an application's own UI strings. An app exports its strings with an id, the line of UI where each one appears, and the pixel width that line must not exceed. String Theory shows the source on the left and a prefilled input on the right, counts characters and measured pixels as you type, and exports the replacements in the same shape.
+<h1 align="center">String Theory</h1>
 
-It is built for one operator on one machine, not for a team or a public site. The local server binds to `127.0.0.1`; nothing is uploaded except the AI polish requests you trigger yourself.
+<p align="center">Pixel-aware rewriting for interface copy, with a human decision on every string.</p>
+
+<p align="center">
+  <img alt="version" src="https://img.shields.io/badge/version-0.1.0-3DDC97?style=flat-square">
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square">
+  <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A5%2022-339933?style=flat-square">
+  <img alt="platform" src="https://img.shields.io/badge/platform-windows%20%7C%20macOS%20%7C%20linux-4C566A?style=flat-square">
+  <img alt="network" src="https://img.shields.io/badge/network-loopback%20only-3DDC97?style=flat-square">
+  <img alt="smoke" src="https://img.shields.io/badge/smoke-19%2F19-3DDC97?style=flat-square">
+</p>
+
+String Theory is a local tool for rewriting an application's interface strings against the width the layout actually gives them. The app exports its strings with an id, the screen each one appears on, and the pixel budget for that line. String Theory shows the source on the left and your rewrite on the right, wraps both the way the layout will, and marks every string as untouched, in progress, or finished. The replacements export in the same shape they arrived in.
+
+It runs on your machine, listens on `127.0.0.1`, keeps working sets in the browser, and uploads nothing except the AI calls you ask for.
 
 ![String Theory editing a Foundry module export](docs/screenshot.png)
 
-## Run it
+## The problem it solves
+
+A string that reads well can still be wrong. "Session Transcripts" fits a 150 pixel header; "Session transcripts for this run" wraps onto a second line the layout never allowed, and the defect shows up on a player's screen at 1440 by 900, not in the file. Character counts do not catch it either, because one wide word costs more than two narrow ones.
+
+So the budget has to be measured, not estimated, and it has to be measured in the font the app renders with. That is the whole tool: a real canvas measurement of every string you touch, against the box the app gives it, with the verdict in front of you while you type.
+
+## What it measures
+
+Every string carries a line budget and a line allowance. The tool wraps the text greedily at spaces inside `maxPxPerLine` in the declared font, which produces three numbers that decide the verdict:
+
+- **Lines against the allowance.** Two lines of text in a one-line label is a spill, however short the widest line is.
+- **The widest line against the box.** A single word wider than the box cannot fit with or without wrapping.
+- **The last line, against the box.** This is the wrap law from interface copywriting practice: if a string wraps, its last line must fill at least 40% of the box and carry more than one word. A last line holding one stranded word is an orphan, and the row goes amber with the percentage it fills (`orphan 23%`). The fix is rebalancing the words, never shrinking the type or hyphenating.
+
+Verdicts are a left border and a tint: green fits, amber fits but reads badly at the break or sits within 10% of the box, red spills. The characters meter is there for the apps that enforce their own character cap, and it stays out of the pixel verdict.
+
+Fonts are measured as declared: family, size, weight and letter spacing, per file, with an optional per-string override for the panel title that is 16px inside a file of 14px labels.
+
+## The round trip
+
+```
+app catalogue ──export──▶ app.strings.json ──▶ String Theory ──▶ app.rewritten.json ──▶ app catalogue
+                                │                                        │
+                  ids, text, where, maxPxPerLine,                text, previous, state,
+                  maxLines, font, maxChars                       changed, by id
+```
+
+The format is the product. [`docs/format.md`](docs/format.md) is canonical, [`docs/string-theory.schema.json`](docs/string-theory.schema.json) is the machine version, and the same reference is available inside the app from the info button. Any export can be checked before it is handed over:
+
+```powershell
+node scripts/validate-export.mjs path/to/app.strings.json
+```
+
+Rewrites merge back by `id`, never by position or by matching text. `previous` is always written so a merge can detect that the source changed underneath it.
+
+## Working through a file
+
+The glyph at the left of each row is the whole workflow. Click it to move a string from untouched to completed, and to rotate between completed and in progress. Right-click returns it to untouched without touching the text. Typing a change marks the string completed, because a rewrite that differs from the source is a decision you made.
+
+Filters count by state (`Untouched`, `In progress`, `Completed`) and by fit (`Close to limit`, `Will wrap`), `Next issue` walks the spills, and the source picker shows the percentage finished per file, so a project parked halfway is visible before you open it. Several files stay open at once, each with its own working set, and switching between them never drops an edit.
+
+## AI assist you can refuse
+
+Every AI action is per string and per click. There is no "polish all", because an unreviewed batch defeats the point of rewriting copy in your own words.
+
+- **Passes.** The control beside the input runs a Grammar, Style or Fit pass on that one string. The prompt carries the string, its screen, the measured width, the line budget and the wrap law, and the answer is measured again like any manual edit.
+- **Style analyst.** After you have marked rewrites completed, the analyst compares each shipped string with your version and writes down the differences as rules: voice, sentence shape, word swaps, length discipline, punctuation, and what you never write. It needs three pairs, samples evenly across a large file, and saves a markdown profile per app. The file is shaped as a skill reference, so pointing the style folder at a writing skill's `references/` directory lets a writing agent load your house style with the skill.
+
+![The style analyst reading completed rewrites](docs/screenshot-style.png)
+
+Providers are the usual set: OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Mistral, Qwen, Z.ai, OpenCode Go, xAI, and a local OpenAI-compatible server for Ollama or LM Studio. Where a provider publishes a real OAuth flow you can sign in instead of pasting a key; xAI is wired today, with a device code, automatic refresh, and a sealed session. Every call is written to a usage ledger with token counts and an estimated cost, and daily and monthly budgets stop the calls when they are reached.
+
+## Screenshots
+
+| The wrap, measured | One file, several sources |
+| --- | --- |
+| ![Close to limit filter showing an orphan last line](docs/screenshot-wrap.png) | ![Source picker listing inbox files with progress](docs/screenshot-sources.png) |
+
+## Quick start
 
 Node 22 or newer.
 
@@ -16,7 +89,7 @@ npm run build
 npm run dev
 ```
 
-One URL in both modes, <http://127.0.0.1:4317>. In dev the supervisor starts Vite on 4317 with hot module replacement and the API on 4318 behind the `/api` proxy, so a client edit lands in the open page and a `server/` edit restarts the API, without touching your working sets.
+One URL in both modes, <http://127.0.0.1:4317>. In dev the supervisor starts Vite on 4317 with hot module replacement and the API on 4318 behind the `/api` proxy, so a client edit lands in the open page and a server edit restarts the API without touching your working sets.
 
 ### Keep it running
 
@@ -24,7 +97,7 @@ One URL in both modes, <http://127.0.0.1:4317>. In dev the supervisor starts Vit
 powershell -ExecutionPolicy Bypass -File scripts\install-startup.ps1
 ```
 
-That registers a hidden logon task with restart-on-failure and puts a **String Theory** shortcut on the desktop. The shortcut starts the server when it is down and opens the browser; when the server is already up it only opens the browser. Nothing appears in the taskbar and no console window opens. Undo it with `-Remove`.
+That registers a hidden logon task with restart-on-failure and puts a **String Theory** shortcut on the desktop. The shortcut starts the server when it is down and opens the browser; when it is already up it only opens the browser. No console window appears. Undo it with `-Remove`.
 
 | Command | What it does |
 | --- | --- |
@@ -33,7 +106,7 @@ That registers a hidden logon task with restart-on-failure and puts a **String T
 | `npm run serve:stop` | stop the supervisor and its children |
 | `node scripts/serve.mjs open` | start if needed, then open the browser |
 
-Logs go to `data/server.log`, rotated at 5 MB. A crashed child is restarted with backoff, and the supervisor itself is restarted by the task.
+Logs go to `data/server.log`, rotated at 5 MB. A crashed child is restarted with backoff, and the task restarts the supervisor.
 
 ### Switch to prod
 
@@ -45,150 +118,29 @@ npm run serve:restart
 
 Prod serves `dist/` and the API from one process on 4317, with no Vite and no hot reload. Going back is `mode dev` and a restart. The mode lives in `serve.config.json`, so the hidden launcher and the logon task follow it without being edited.
 
-## Use it
+## Where things live
 
-1. Open the **Sources** picker next to the wordmark. It lists every export in the inbox folder, plus anything opened from disk. Pick one; the sample is available from the empty state if the inbox is empty.
-2. Read the source on the left. Hovering it shows the full location line, the pixel budget and the font the measurement uses.
-3. Type the rewrite on the right. The **chars** and **line** counters under the input compare the source value with the current one, and a **lines** readout shows the wrap:
-   - green, fits, and either one line or a last line that fills at least 40% of the box
-   - amber, fits but reads badly at the break (an orphan last line), or a line is within 10% of the box
-   - red, a line is wider than the box or the text needs more lines than the layout allows
-   The line meter prints the overflow in pixels; the lines readout prints `orphan 23%` when the last line is stranded.
+| Path | What it holds |
+| --- | --- |
+| `data/` | Runtime state: config, the sealed key vault, the OAuth session store, the usage ledger, the log. Gitignored, delete it to reset. |
+| `profiles/` | Style profiles written by the analyst, one markdown file per app. |
+| `inbox/` | Exports you work on. Input only: the tool never writes there, and a rewrite leaves as a download. |
+| `samples/demo.strings.json` | The sample the empty state loads, with one row in each verdict. |
 
-   ![Close to limit filter showing a single amber row](docs/screenshot-close-to-limit.png)
-4. **Polish** sends one string to the connected AI provider for a grammar and style pass. The caret beside it runs Grammar, Style or Fit instead of the default pass. `Ctrl+Enter` inside an input does the same, `Esc` reverts that row.
-5. **Export JSON** downloads `<app>.rewritten.json` with the current text, the previous text, the state and a `changed` flag per string. **Copy JSON** puts the same payload on the clipboard.
+Keys are encrypted with AES-256-GCM under `data/master.key` and never returned to the browser; OAuth sessions are sealed the same way, with only the expiry and the account label readable. The local server has no authentication because it only listens on loopback. Do not expose port 4317 to a network.
 
-Filters, search, `Next issue` and the status bar exist to get you to the two strings that will wrap, not to browse.
-
-### Marking progress
-
-Every string carries one of three states. The glyph at the left of the row is the whole control:
-
-| Glyph | State | How it gets there |
-| --- | --- | --- |
-| empty circle | untouched | an imported string |
-| filled check | completed | the first keystroke that changes the text, or a click |
-| half circle | in progress | a click on a completed string, when the rewrite is not settled yet |
-
-- **Click** moves forward: untouched → completed → in progress → completed.
-- **Right-click** returns any state to untouched, without touching the text.
-- Typing never downgrades a row: a started rewrite stays in progress until you say otherwise. Deleting the text back to the source returns the row to untouched, because nothing is changed any more.
-
-The filters count by state, the status bar reads `8 / 16 completed`, and the source picker shows each file's percentage so a project parked halfway is visible before you open it.
-
-### Learning your style
-
-**Style** in the header runs an analyst over every string you marked completed and actually changed. It reads the pairs (shipped text against your rewrite, with the screen each one appears on), and asks the connected model to state the differences as rules: voice, sentence shape, word swaps, length, punctuation, and what you never write.
-
-- It needs at least three completed rewrites; more is a better sample.
-- Only completed rows count, so drafts do not distort the profile.
-- The result is written to `profiles/<app>.md` with front matter naming the app, the pair count and the model, and it is in the shape a skill reference expects. Point **Settings → style folder** at your style skill's `references/` directory and it writes straight in.
-- The call is charged to the usage ledger like any other, and the panel shows the estimated cost before you run it.
-
-There is no automatic injection into the polish prompt yet: the profile is a document you review, not a hidden prompt. Wiring it into the polish system prompt is the next step once the rules read the way you want.
-
-
-## Several projects at once
-
-The picker next to the wordmark is the source list. Every `.json` export in `inbox/` appears there with its app name, string count, import notes and how far you have got with it.
-
-```
-inbox/
-  session-transcripts.strings.json
-  hermes-todo/hermes-todo.strings.json
-  casino-simulator.strings.json
-```
-
-Other projects and agents drop files there; **Rescan** picks up new ones without a restart. Subfolders group related files, up to three levels deep, and each row shows the folder it came from.
-
-![The Sources picker with three exports, two in progress](docs/screenshot-sources.png)
-
-Three exports in the inbox. Two have working sets, so they carry a bar and a percentage; the third shows `not open` and its size. The footer totals every open file.
-
-Switching sources keeps each working set: rows, edits and progress are stored per file in the browser, so a project parked at 40% is still at 40% after you work on something else or reload. The picker shows `19% 3/16` for a file with three rewrites, and the footer totals every open file.
-
-Files opened with **Open file** or dropped on the window join the list too, under their own heading. A working set whose file has since been deleted stays visible as "gone from the inbox", because the rewrites are still yours until you discard them.
-
-Progress is computed from the rewrites in that file: a row counts when its text differs from the source. Nothing is written back to the inbox; the export is a separate download.
-
-
-## Export format
-
-The full field reference, accepted aliases and the merge rule are in [docs/format.md](docs/format.md). The short version:
-
-```json
-{
-  "format": "string-theory/1",
-  "app": "Session Transcripts",
-  "font": { "family": "Segoe UI", "size": 14, "weight": 400 },
-  "defaultMaxPxPerLine": 200,
-  "strings": [
-    {
-      "id": "panel.title",
-      "text": "Session Transcripts",
-      "where": "Panel header, left of the refresh button",
-      "maxPxPerLine": 180,
-      "maxLines": 1,
-      "maxChars": 24
-    }
-  ]
-}
-```
-
-`font` is not decoration. The pixel figures come from measuring each string in that font with a canvas, so the export has to declare what the app really renders with. If the family is not installed on this machine the browser substitutes one, and the settings panel says so. A string that is not in the file font can carry its own `font`.
-
-`maxPxPerLine` is the box a line wraps inside; `maxLines` is how many lines the layout gives the string; `maxPxTotal` is their product. A string that needs more lines than allowed is red, and a last line that carries one word or fills less than 40% of the box is an orphan, flagged amber. That 40% rule is the one from the string authoring standard, and it is not a setting: rebalance the words instead of shrinking the type.
-
-The contract, the aliases a rough exporter can get away with, the validity rules and the merge algorithm are in [docs/format.md](docs/format.md). The machine-readable version is [docs/string-theory.schema.json](docs/string-theory.schema.json), and any file can be checked before it is handed over:
+## Development
 
 ```powershell
-node scripts/validate-export.mjs path/to/app.strings.json
+npm run build                        # tsc --noEmit && vite build
+npm run smoke                        # 19 end-to-end checks; needs the server up
+node scripts/validate-export.mjs samples/demo.strings.json
 ```
 
-Errors block an export; warnings still load and show up in a dismissible strip above the list, along with anything the import had to repair. The same reference is available inside the app from the **info** button in the header.
+There is no test framework. `scripts/smoke.mjs` starts a stub OpenAI-compatible provider and runs real calls through the server: prompt contents, token and cost accounting, the budget guard, the credential errors, the analyst's three-pair floor, and the profile listing. Then it restores the config it changed.
 
-## AI providers
+The architecture, the invariants that must not drift, and the map of which file owns which job are in [`AGENTS.md`](AGENTS.md). The screenshots and the banner are regenerated from `brand/` at fixed sizes.
 
-The provider set matches the one Lingarr Next exposes for AI work: OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Mistral, Qwen (DashScope), Z.ai, OpenCode Go, xAI, and a local OpenAI-compatible server for Ollama or LM Studio. Pick one in Settings, paste the key, fetch the model list (or type a model id), and it becomes the polish engine.
+## License
 
-**Keys or sign-in.** Where a provider publishes a real OAuth flow you can sign in instead of pasting a key. xAI is the one wired today: Settings → xAI → **sign-in** starts a device login, shows a code, and polls until you approve it in the browser. The session is used as a bearer token, refreshed automatically when it is close to expiry, and sealed with AES-256-GCM in `data/oauth.enc.json`; only the expiry and the account label are stored in the clear, and the browser never receives a token. A token you already hold can be pasted instead.
-
-Providers whose OAuth is a subscription or a first-party CLI session (OpenAI's ChatGPT plan, Anthropic's Claude subscription, Gemini's Code Assist) are key-only here on purpose: their flows are not offered to third-party clients, and inventing one would produce a button that fails. The flow table lives in `server/oauth.mjs`, so adding a provider is configuration, not surgery.
-
-- Keys are written to `data/keys.enc.json`, encrypted with AES-256-GCM under `data/master.key`. The browser never receives them; requests are proxied by the local server.
-- Each provider keeps its own endpoint override, so a gateway or proxy works without code changes.
-- An explicit **API key** mode wins over a signed-in session, so you can keep both and choose.
-
-Every call is logged to `data/usage.json` with token counts and an estimated cost. The pricing table covers OpenAI, Anthropic, DeepSeek and `openrouter/free`; other providers record tokens but no cost, and the settings panel warns when today's calls cannot be priced. Daily and monthly USD budgets stop the polish calls when they are reached.
-
-The prompt sends the string, its id, the location line, the widest measured line, the line budget and the line count, plus a character budget derived from both. Placeholders, shortcuts and product names are copied byte for byte, and the answer is trimmed of fences and stray quotes before it lands in the input. A rewrite is never trusted to fit: it is measured again, and goes red like any manual edit.
-
-## Data and privacy
-
-Everything lives under `data/` and is gitignored: `config.json`, `keys.enc.json`, `oauth.enc.json`, `master.key`, `usage.json`, `server.log`. Delete the folder to reset. Working sets live in the browser's local storage under `string-theory.library.v2`, one record per source.
-
-Generated style profiles are different: they land in `profiles/` at the repo root (or wherever **Settings → style folder** points), because they are documents you keep and show to other writers, not runtime state.
-
-`inbox/` holds the exports you work on. It is gitignored apart from its README, and the tool never writes to it: the rewritten file is a download, not an edit in place.
-
-The server has no authentication because it only listens on loopback. Do not expose port 4317 to a network.
-
-## Scripts
-
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Supervisor in dev mode: Vite with hot reload on 4317, API on 4318 |
-| `npm run build` | Typecheck and build the client into `dist/` |
-| `npm run serve` | Supervisor in the mode from `serve.config.json` |
-| `npm start` | API server alone on 4317, serving `dist/`. No supervisor, no auto-restart |
-| `node scripts/smoke.mjs` | End-to-end check against a running server: provider round trip, prompt contents, style analyst, profile listing, usage accounting, budget guard, credential errors |
-| `node scripts/validate-export.mjs <file>` | Check an export against the format contract. `--strict` fails on warnings too |
-
-## Known limits
-
-- One locale per file. There is no multi-language string table; a second locale is a second export.
-- The app is a single-operator tool on loopback. There is no auth, no sharing and no remote access.
-- Pixel numbers depend on the declared font being installed and on canvas measuring text the way the app lays it out. Letter spacing and weight are honoured; kerning-only differences and platform font hinting are not.
-- The AI is per string, deliberately. There is no "polish all" because an unreviewed batch defeats the point of rewriting in your own words.
-- Cost estimates are a local price table, not provider billing. Treat them as a guardrail, not an invoice.
+MIT. See [LICENSE](LICENSE).

@@ -152,6 +152,8 @@ export function listProfiles(dir) {
       const info = statSync(path)
       const text = readFileSync(path, 'utf8')
       const block = text.match(FRONTMATTER)?.[1] ?? ''
+      // Only files the analyst wrote: a stray README in the folder is not a profile.
+      if (!block) continue
       files.push({
         name: entry,
         app: readField(block, 'app') || basename(entry, '.md'),

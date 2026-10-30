@@ -8,3 +8,7 @@ data/
 # Keep the folder and its README so a fresh clone has somewhere to drop files.
 inbox/*
 !inbox/README.md
+
+# Style profiles are your house rules, written by the analyst. Keep the folder.
+profiles/*
+!profiles/README.md
