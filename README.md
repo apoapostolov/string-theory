@@ -125,7 +125,9 @@ Rewrites merge back by `id`, never by position or by matching text. `previous` i
 
 The glyph at the left of each row is the whole workflow. Click it to move a string from untouched to completed, and to rotate between completed and in progress. Right-click returns it to untouched without touching the text. Typing a change marks the string completed, because a rewrite that differs from the source is a decision you made.
 
-Filters count by state (`Untouched`, `In progress`, `Completed`) and by fit (`Close to limit`, `Will wrap`), `Next issue` walks the spills, and the source picker shows the percentage finished per file, so a project parked halfway is visible before you open it. Several files stay open at once, each with its own working set, and switching between them never drops an edit.
+Filters count by state (`Untouched`, `In progress`, `Completed`) and by fit (`Close to limit`, `Will wrap`), and `Next issue` walks the spills. A rail of file names sits above the tags — `Internal` for the app's own strings, then the project's documents in reading order, each with its own progress — and clicking one switches the list without losing an edit. Several projects stay open at once, each with its own working set.
+
+![The source picker: one row per project, its files in reading order](docs/app-projects.png)
 
 A second rail groups the strings by what they do. Every string carries one or more tags — `heading`, `hint`, `button`, `error`, `table-header`, and so on — plus any grouping tag the app invents, such as `settings` or `checkout`. Each tag shows its own progress (`3/12 done`), and clicking one narrows the list to those strings, so a pass over only the hints, or only one screen, is a click instead of a search. Several tags at once can mean any or all of them.
 
@@ -208,7 +210,7 @@ The source picker carries the instructions you would otherwise write by hand. Op
 | --- | --- |
 | `data/` | Runtime state: config, the sealed key vault, the OAuth session store, the usage ledger, the log. Gitignored, delete it to reset. |
 | `profiles/` | Style profiles written by the analyst, one markdown file per app. |
-| `inbox/` | Exports you work on. Input only: the tool never writes there, and a rewrite leaves as a download. Drop one file per app under `inbox/<project>/` and it appears in the source picker without a restart. |
+| `inbox/` | Exports you work on. Input only: the tool never writes there, and a rewrite leaves as a download. Drop one file per app under `inbox/<project>/` and the project appears in the source picker without a restart; every file in that folder opens with it. |
 | `samples/demo.strings.json` | The sample the empty state loads, with one row in each verdict. |
 
 Keys are encrypted with AES-256-GCM under `data/master.key` and never returned to the browser; OAuth sessions are sealed the same way, with only the expiry and the account label readable. The local server has no authentication because it only listens on loopback. Do not expose port 4317 to a network.

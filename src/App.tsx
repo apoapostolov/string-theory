@@ -884,7 +884,7 @@ export default function App() {
             scanning={scanning}
             busyId={busyId}
             onSelectDoc={activate}
-            onOpenInbox={(entry) => void loadInboxFile(entry)}
+            onOpenProject={(entry) => void loadInboxFile(entry)}
             onRemoveDoc={removeDoc}
             onRescan={() => void scanInbox()}
             onOpenFile={pickFile}

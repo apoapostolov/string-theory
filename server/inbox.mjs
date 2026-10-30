@@ -63,6 +63,10 @@ function describe(file, dir) {
     mtime: 0,
     app: '',
     version: '',
+    surface: 'app',
+    source: '',
+    order: null,
+    title: '',
     count: 0,
     errors: 0,
     warnings: 0,
@@ -81,6 +85,12 @@ function describe(file, dir) {
     entry.app = parsed.app
     entry.version = parsed.version
     entry.count = parsed.rows.length
+    // Which surface the file belongs to, and where it sits in a project's
+    // reading order, so a listing can be grouped by project without loading it.
+    entry.surface = parsed.surface === 'docs' ? 'docs' : 'app'
+    entry.source = parsed.source ?? ''
+    entry.order = parsed.order ?? null
+    entry.title = parsed.title ?? ''
     entry.errors = parsed.issues.filter((issue) => issue.level === 'error').length
     entry.warnings = parsed.issues.filter((issue) => issue.level === 'warn').length
   } catch (error) {

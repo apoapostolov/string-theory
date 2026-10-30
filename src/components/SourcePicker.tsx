@@ -11,6 +11,7 @@ import {
 } from '@phosphor-icons/react'
 import type { DocumentProgress, DocumentRecord, InboxEntry, InboxListing } from '../types'
 import { AiInstructions } from './AiInstructions'
+import { projectGroups, type ProjectGroup } from '../lib/projects'
 
 export type SourceSummary = {
   id: string
@@ -29,7 +30,8 @@ type Props = {
   scanning: boolean
   busyId: string | null
   onSelectDoc: (id: string) => void
-  onOpenInbox: (entry: InboxEntry) => void
+  /** Open a project: its app export plus every document beside it. */
+  onOpenProject: (entry: InboxEntry) => void
   onRemoveDoc: (id: string) => void
   onRescan: () => void
   onOpenFile: () => void
@@ -45,12 +47,6 @@ function relativeTime(stamp: number | string): string {
   if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)}h ago`
   if (diff < 7 * 86_400_000) return `${Math.round(diff / 86_400_000)}d ago`
   return new Date(time).toLocaleDateString()
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
 function Progress({ progress, muted }: { progress: DocumentProgress; muted?: boolean }) {
@@ -84,7 +80,7 @@ export function SourcePicker({
   scanning,
   busyId,
   onSelectDoc,
-  onOpenInbox,
+  onOpenProject,
   onRemoveDoc,
   onRescan,
   onOpenFile,
@@ -110,21 +106,31 @@ export function SourcePicker({
     }
   }, [open])
 
-  const byInboxId = new Map(docs.filter((doc) => doc.origin === 'inbox').map((doc) => [doc.id, doc]))
   const inboxFiles = inbox?.files ?? []
   const diskDocs = docs.filter((doc) => doc.origin === 'file')
   const listedInboxIds = new Set(inboxFiles.map((entry) => `inbox:${entry.id}`))
   const staleDocs = docs.filter((doc) => doc.origin === 'inbox' && !listedInboxIds.has(doc.id))
+  // One row per project. The files of a project belong to the lane row inside the
+  // editor, not to this list.
+  const projects = projectGroups(inboxFiles, docs)
 
   function selectDoc(id: string) {
     setOpen(false)
     onSelectDoc(id)
   }
 
-  function selectInbox(entry: InboxEntry) {
+  function selectProject(group: ProjectGroup) {
     setOpen(false)
-    onOpenInbox(entry)
+    onOpenProject(group.primary)
   }
+
+  /** The project this working set belongs to, so the row can show as active. */
+  function projectOfActive(): string | null {
+    if (!current) return null
+    if (current.id.startsWith('inbox:')) return current.id.slice(6).split('/')[0]
+    return null
+  }
+  const activeProject = projectOfActive()
 
   function openLocalFile() {
     setOpen(false)
@@ -170,7 +176,7 @@ export function SourcePicker({
           <div className="flex items-center gap-2 border-b border-line px-3 py-2">
             <span className="text-[11px] font-semibold tracking-[0.02em] text-fg">Sources</span>
             <span className="font-mono text-[10px] text-fg-faint">
-              {docs.length} open · {inboxFiles.length} in inbox
+              {projects.length} project{projects.length === 1 ? '' : 's'} · {docs.length} open
             </span>
             <div className="ml-auto flex items-center gap-1">
               <button
@@ -205,7 +211,7 @@ export function SourcePicker({
 
           <div className="max-h-[52vh] overflow-y-auto">
             <div className="flex items-baseline gap-2 px-3 pt-2 pb-1">
-              <span className="text-[10px] tracking-[0.07em] text-fg-faint uppercase">Inbox</span>
+              <span className="text-[10px] tracking-[0.07em] text-fg-faint uppercase">Projects</span>
               <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-fg-faint/80" title={inbox?.dir}>
                 {inbox?.dir ?? 'inbox'}
               </span>
@@ -221,77 +227,74 @@ export function SourcePicker({
               </button>
             ) : (
               <ul className="divide-y divide-line pb-1">
-                {inboxFiles.map((entry) => {
-                  const doc = byInboxId.get(`inbox:${entry.id}`)
-                  const active = current?.id === `inbox:${entry.id}`
-                  const selection = doc ? doc.id : `inbox:${entry.id}`
+                {projects.map((project) => {
+                  const active = activeProject === project.key
+                  const busy = busyId === project.primary.id
+                  // Long document titles need room: three names plus a count reads
+                  // better than five truncated ones.
+                  const shown = project.kinds.slice(0, 3)
+                  const extra = project.kinds.length - shown.length
                   return (
-                    <li key={entry.id}>
+                    <li key={project.key}>
                       <div
-                        className={`group flex items-center gap-2 px-3 py-1.5 ${
+                        className={`group px-3 py-2 ${
                           active ? 'bg-ink-750 shadow-[inset_2px_0_0_var(--color-fg)]' : 'hover:bg-ink-800/60'
                         }`}
                       >
                         <button
                           type="button"
-                          disabled={Boolean(entry.broken) || busyId === entry.id}
-                          onClick={() => (doc ? selectDoc(doc.id) : selectInbox(entry))}
-                          className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:opacity-50"
+                          disabled={Boolean(project.primary.broken) || busy}
+                          onClick={() => selectProject(project)}
+                          title={`${project.label}: ${project.entries.map((entry) => entry.name).join(', ')}`}
+                          className="block w-full text-left disabled:opacity-50"
                         >
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-1.5">
-                              <span className={`truncate text-[12.5px] ${active ? 'font-medium text-fg' : 'text-fg-dim'}`}>
-                                {entry.app || entry.name}
+                          <span className="flex items-baseline gap-2">
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span
+                                className={`truncate text-[12.5px] ${
+                                  active ? 'font-medium text-fg' : 'text-fg-dim'
+                                }`}
+                              >
+                                {project.label}
                               </span>
                               {active ? <Check size={10} weight="bold" className="shrink-0 text-fg" /> : null}
-                              {entry.errors ? (
+                              {project.errors ? (
                                 <span className="flex shrink-0 items-center gap-0.5 font-mono text-[9.5px] text-over">
                                   <WarningCircle size={9} weight="fill" />
-                                  {entry.errors} error{entry.errors === 1 ? '' : 's'}
+                                  {project.errors}
                                 </span>
                               ) : null}
                             </span>
-                            <span className="mt-0.5 flex items-center gap-1.5">
-                              <span className="truncate font-mono text-[10px] text-fg-faint">
-                                {entry.group ? `${entry.group}/` : ''}
-                                {entry.name}
-                              </span>
-                              <span className="shrink-0 text-fg-faint/50">·</span>
-                              <span className="shrink-0 text-[10px] text-fg-faint">{entry.count} strings</span>
-                              <span className="shrink-0 text-fg-faint/50">·</span>
-                              <span className="shrink-0 text-[10px] text-fg-faint">{relativeTime(entry.mtime)}</span>
-                              {entry.warnings && !entry.errors ? (
-                                <>
-                                  <span className="shrink-0 text-fg-faint/50">·</span>
-                                  <span className="shrink-0 text-[10px] text-near">
-                                    {entry.warnings} note{entry.warnings === 1 ? '' : 's'}
-                                  </span>
-                                </>
+                            <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums text-fg-faint">
+                              {project.fileCount} file{project.fileCount === 1 ? '' : 's'}
+                              <span className="px-1 text-fg-faint/40">·</span>
+                              {relativeTime(project.updated)}
+                            </span>
+                          </span>
+
+                          <span className="mt-1 flex items-center gap-2">
+                            <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-fg-faint">
+                              {shown.map((kind, index) => (
+                                <span key={kind.label}>
+                                  {index ? <span className="px-1 text-fg-faint/40">·</span> : null}
+                                  <span className={kind.surface === 'app' ? 'text-fg-dim' : undefined}>{kind.label}</span>
+                                </span>
+                              ))}
+                              {extra > 0 ? (
+                                <span>
+                                  <span className="px-1 text-fg-faint/40">·</span>+{extra} more
+                                </span>
                               ) : null}
                             </span>
-                            {entry.broken ? (
-                              <span className="mt-0.5 block truncate text-[10px] text-over">{entry.broken}</span>
-                            ) : null}
+                            {project.progress ? (
+                              <Progress progress={project.progress} muted={!active} />
+                            ) : (
+                              <span className="shrink-0 font-mono text-[10px] tabular-nums text-fg-faint">
+                                {project.strings.toLocaleString()} strings
+                              </span>
+                            )}
                           </span>
-                          {doc ? (
-                            <Progress progress={doc.progress} muted={!active} />
-                          ) : (
-                            <span className="shrink-0 font-mono text-[10px] text-fg-faint">
-                              not open <span className="text-fg-faint/50">·</span> {formatBytes(entry.bytes)}
-                            </span>
-                          )}
                         </button>
-                        {doc ? (
-                          <button
-                            type="button"
-                            aria-label="Remove working set"
-                            title="Close this working set. The file stays in the inbox."
-                            onClick={() => onRemoveDoc(selection)}
-                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-fg-faint opacity-0 transition-opacity group-hover:opacity-100 hover:bg-ink-750 hover:text-fg"
-                          >
-                            <X size={10} />
-                          </button>
-                        ) : null}
                       </div>
                     </li>
                   )

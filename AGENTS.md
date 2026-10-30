@@ -144,6 +144,13 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - Prose rows are `src/components/DocsRow.tsx` (with `RowBits` for the glyph and pass control). They show the source paragraph, a tall textarea, and chars/words; no meters, no orphan rule, no fit filter.
 - The polish prompt branches on `item.surface`: prose gets a paragraph instruction and never hears about pixels or the 40% last-line law.
 
+## Projects, files and lanes
+
+- The picker lists **projects**, one row per inbox folder: the folder name, the file count and age, the file names in lane order (the app first, then `order`), and the total number of strings — or the project's progress once it is open. Never list every file of every project in it; that is what made it unreadable.
+- The lane row inside the editor is the file switcher: `Internal` first, then the documents by `order`, then name. It sits directly above the tag rail and stays visible for a one-file project, because it is where the editor says which file the list came from.
+- Opening a project loads every export in its folder in one commit and activates the app export; `src/lib/projects.ts` owns the grouping and the sort, and `server/inbox.mjs` must expose `surface`, `source`, `order` and `title` for it.
+- A listing entry that silently lacks those fields reads as `undefined` and every file looks like a separate project: check `/api/files` before believing the UI.
+
 ## Windowing
 
 - `src/lib/useVirtualRows.ts` renders only the rows around the viewport inside a spacer of the full height. Never render the whole list to fix a scrolling bug; fix the window.

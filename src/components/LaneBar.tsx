@@ -11,10 +11,11 @@ type Props = {
  *
  * The app's own strings lead, because they are what the app says; the README,
  * the changelog and the documents the README links to follow, each with its own
- * progress. A project of one file shows nothing here: there is nothing to switch.
+ * progress. A project of one file still shows the row: it is where the editor
+ * says which file the list came from.
  */
 export function LaneBar({ lanes, activeId, onPick }: Props) {
-  if (lanes.length < 2) return null
+  if (!lanes.length) return null
 
   return (
     <div
