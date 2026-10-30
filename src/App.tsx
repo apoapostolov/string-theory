@@ -729,7 +729,15 @@ export default function App() {
 
   // Every file of the active project, in reading order: internal, README,
   // changelog, then whatever the README links to.
-  const lanes = useMemo(() => lanesFor(library.docs, library.activeId), [library.docs, library.activeId])
+  // The lane chips count from the saved library record, which is written on a
+  // debounce, so the file you are editing reported the progress it had a moment
+  // ago. The open file's counts come from the live rows instead.
+  const lanes = useMemo(() => {
+    const docs = { ...library.docs }
+    const active = library.activeId ? docs[library.activeId] : null
+    if (active) docs[library.activeId as string] = { ...active, rows }
+    return lanesFor(docs, library.activeId)
+  }, [library.docs, library.activeId, rows])
 
   // ------------------------------------------------------------ export
 

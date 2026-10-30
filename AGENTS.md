@@ -53,7 +53,7 @@ There is no test framework. `scripts/smoke.mjs` is the integration test: it star
 | `server/pricing.mjs` | USD per million tokens, ported from Lingarr Next. |
 | `docs/format.md` | Canonical format, the wrap law, and the exporter guidance. |
 | `samples/demo.strings.json` | The sample the empty state loads. Keep one row in each verdict: one spill, one orphan, clean two-line wraps. |
-| `docs/banner.png`, `docs/icon.png`, `docs/icon.svg`, `docs/app-*.png`, `docs/screenshot*.png` | README assets. Regenerate from `brand/` at the sizes noted there, never by hand. |
+| `docs/banner.png`, `docs/icon.png`, `docs/icon.svg`, `docs/moo-*.png` | README assets. Every screenshot is shot on the Moo project, which is the working reference; regenerate the banner and icon from `brand/` at the sizes noted there, never by hand. |
 | `brand/banner.html`, `brand/icon.html` | The sources the assets are rendered from: 1600×600 banner, 512×512 icon. |
 | `profiles/README.md` | Explains where style profiles go; the generated profiles themselves are gitignored. |
 | `LICENSE` | MIT. |
@@ -169,6 +169,7 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - A file is either `surface: "app"` (the default) or `surface: "docs"`. Never mix them: a docs row has no wrap box, and a budget on one is a warning, not a convenience.
 - `shared/parse-export.mjs` strips budgets on a docs file and reports it once (`docs-budgets`), because measuring a paragraph against a button manufactures failures. Docs rows keep `maxPxPerLine: null` and `maxLines: 0`.
 - `src/lib/lanes.ts` orders the lanes: internal first, then `order` (README 0, changelog 1, release notes 2, then the README's links), then label. The order is data from the file, never guessed from the name.
+- Lane counts come from the rows, not from the library snapshot: `lanesFor` receives the open file's live rows, because the saved record is written on a debounce and the file you are editing would otherwise report the progress it had a moment ago.
 - Opening a file opens its folder. `loadInboxFile` collects every export in the same group and commits one library write: adding docs one at a time let each activation flush the previous document into a library that did not contain it yet, which silently dropped the first file of every project.
 - Prose rows are `src/components/DocsRow.tsx` (with `RowBits` for the glyph and pass control). They show the source paragraph, a tall textarea, and chars/words; no meters, no orphan rule, no fit filter.
 - The polish prompt branches on `item.surface`: prose gets a paragraph instruction and never hears about pixels or the 40% last-line law.

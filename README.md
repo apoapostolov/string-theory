@@ -23,7 +23,7 @@ String Theory is a local tool for rewriting an application's interface strings a
 
 It runs on your machine, listens on `127.0.0.1`, keeps working sets in the browser, and uploads nothing except the AI calls you ask for.
 
-![String Theory editing a Foundry module export](docs/app-list.png)
+![String Theory editing Moo's own strings against the 200 px the modal labels give them](docs/moo-list.png)
 
 ## The problem it solves
 
@@ -56,7 +56,7 @@ A hardcoded model list is wrong the week it ships. Every provider publishes its 
 - **The listing is the health check.** `GET /models` answers 200 only to a credential the provider accepts, so a successful fetch proves the key works. A failure is kept apart by cause: a 401 is a rejected credential, a 502 means the provider could not be reached, and a key that may chat but not read the catalogue — an OpenAI project key without `api.model.read`, for instance — is reported as limited instead of dead, with the curated list shown.
 - **Nothing is lost by a bad check.** A temporary failure keeps the last good catalogue; only a rejected credential clears it.
 
-![The model row: refresh, the age of the catalogue, then the picker](docs/app-models.png)
+![The model row: Refresh models, the age of the catalogue, then the picker](docs/moo-models.png)
 
 ## Documents, beside the app
 
@@ -68,7 +68,7 @@ A project folder can hold both. Load any file in `inbox/<project>/` and every ex
 Files   Internal 0/4   README.md 0/7   CHANGELOG.md 0/3   guide.md 0/2
 ```
 
-![A project's README lane: the file bar, then paragraph rows](docs/app-docs.png)
+![Moo's README lane: the file bar above, paragraph rows below, one paragraph showing was and now](docs/moo-docs.png)
 
 Internal is the app's strings. The rest are documents, ordered the way a reader meets them: the README first, then the changelog, then the release notes, then whatever the README links to, in link order. Each pill carries its own progress, and clicking one switches the list — the filters, the search and the tags stay put.
 
@@ -108,6 +108,8 @@ Two switches change the shape — grouping can be off, and ids can be left out u
 
 `Copy prompt` takes the whole thing; `Copy lines only` takes just the change list for an agent that already knows the job. Nothing about this needs a metadata file, an exporter change, or an app that speaks the format.
 
+![The change prompt: one line per change, ready to paste into the agent that owns the app](docs/moo-changes.png)
+
 ## The round trip
 
 ```
@@ -129,13 +131,13 @@ Rewrites merge back by `id`, never by position or by matching text. `previous` i
 
 The glyph at the left of each row is the whole workflow. Click it to move a string from untouched to completed, and to rotate between completed and in progress. Right-click returns it to untouched without touching the text. Typing a change marks the string completed, because a rewrite that differs from the source is a decision you made.
 
-Filters count by state (`Untouched`, `In progress`, `Completed`) and by fit (`Close to limit`, `Will wrap`), and `Next issue` walks the spills. A rail of file names sits above the tags — `Internal` for the app's own strings, then the project's documents in reading order, each with its own progress — and clicking one switches the list without losing an edit. A project with more files than fit scrolls: the wheel works, and a caret pair appears at whichever end still has something behind it. Several projects stay open at once, each with its own working set.
+Filters count by state (`Untouched`, `In progress`, `Completed`) and by fit (`Close to limit`, `Will wrap`), and `Next issue` walks the spills. A rail of file names sits above the tags — `Internal` for the app's own strings, then the project's documents in reading order, each with its own progress — and clicking one switches the list without losing an edit. A project with more files than fit scrolls: the wheel works, and a caret pair appears at whichever end still has something behind it. Several projects stay open at once, each with its own working set. The inbox in this repository holds one, Moo, which is the project every screenshot on this page uses.
 
-![The source picker: one row per project, its files in reading order](docs/app-projects.png)
+![The source picker: Moo as a project row, its twelve files in reading order, and the progress across them](docs/moo-projects.png)
 
 A second rail groups the strings by what they do. Every string carries one or more tags — `heading`, `hint`, `button`, `error`, `table-header`, and so on — plus any grouping tag the app invents, such as `settings` or `checkout`. Each tag shows its own progress (`3/12 done`), and clicking one narrows the list to those strings, so a pass over only the hints, or only one screen, is a click instead of a search. Several tags at once can mean any or all of them.
 
-![The tag rail narrowed to the hint strings](docs/app-tags.png)
+![The tag rail narrowed to Moo's hint strings](docs/moo-tags.png)
 
 ## AI assist you can refuse
 
@@ -147,9 +149,9 @@ Every AI action is per string and per click. There is no "polish all", because a
 - **What the menu offers.** Settings → Workspace has two switches: list every voice in the pass menu, and show your profile in it. Turn both off and the menu is the three passes again.
 - **Style analyst.** After you have marked rewrites completed, the analyst compares each shipped string with your version and writes down the differences as rules: voice, sentence shape, word swaps, length discipline, punctuation, and what you never write. It needs three pairs, samples evenly across a large file, and saves a markdown profile per app. The file is shaped as a skill reference, so pointing the style folder at a writing skill's `references/` directory lets a writing agent load your house style with the skill.
 
-![The pass menu: the passes on the left, the voices and the profile switch on the right](docs/app-voices.png)
+![The pass menu on a Moo string: the passes on the left, the voices and the profile switch on the right](docs/moo-voices.png)
 
-![The style analyst reading completed rewrites](docs/screenshot-style.png)
+![The style analyst counting completed rewrites, with the model, the estimate and where the profile lands](docs/moo-style.png)
 
 Providers are the usual set: OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Mistral, Qwen, Z.ai, OpenCode Go, xAI, and a local OpenAI-compatible server for Ollama or LM Studio. Where a provider runs a real OAuth flow you can sign in instead of pasting a key. Three are wired: xAI and ChatGPT by device code, and Claude by approving in the browser and pasting the code it shows. Each keeps a sealed session on this machine, refreshes itself before it expires, and falls back to a key the moment you pin one. A ChatGPT session is only accepted by the Codex endpoint, so those calls go there, not to `api.openai.com`. Every call is written to a usage ledger with token counts and an estimated cost, and daily and monthly budgets stop the calls when they are reached.
 
@@ -157,7 +159,7 @@ Providers are the usual set: OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRou
 
 | The wrap, measured | One file, several sources |
 | --- | --- |
-| ![Close to limit filter showing an orphan last line](docs/app-wrap.png) | ![Source picker listing inbox files with progress](docs/screenshot-sources.png) |
+| ![Close to limit on Moo: amber rows and an orphan last line](docs/moo-wrap.png) | ![Moo's twelve lanes: the app's own strings, then its documents in reading order](docs/moo-lanes.png) |
 
 ## Accessibility
 
@@ -237,7 +239,7 @@ There is no test framework. `scripts/smoke.mjs` starts a stub OpenAI-compatible 
 
 `scripts/oauth-flow.mjs` points the token endpoints at a local stub and checks the three sign-in shapes without borrowing an account: the PKCE parameters on the Claude authorize URL, the code exchange, the Codex device handshake, refresh rotation, a spent flow being refused, and the headers each authentication style puts on the wire.
 
-The architecture, the invariants that must not drift, and the map of which file owns which job are in [`AGENTS.md`](AGENTS.md). The screenshots and the banner are regenerated from `brand/` at fixed sizes.
+The architecture, the invariants that must not drift, and the map of which file owns which job are in [`AGENTS.md`](AGENTS.md). The banner and the icon are regenerated from `brand/` at fixed sizes, and every screenshot is shot on the Moo project at 1,418 px wide.
 
 ## Changelog
 
