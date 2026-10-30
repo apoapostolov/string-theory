@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import sampleRaw from '../samples/demo.strings.json?raw'
-import type { ConfigPayload, Fit, FontMetrics, ModeId, Row, UsageSummary } from './types'
+import type { ConfigPayload, Fit, FontMetrics, ImportIssue, ModeId, Row, UsageSummary } from './types'
 import { api } from './lib/api'
 import { DEFAULT_FONT, parseExport } from './lib/format'
 import { charFit, fitOf, measurePx, worstFit } from './lib/metrics'
@@ -10,6 +10,7 @@ import { StatusBar } from './components/StatusBar'
 import { SettingsPanel } from './components/SettingsPanel'
 import { EmptyState } from './components/EmptyState'
 import { FormatSpec } from './components/FormatSpec'
+import { ImportReport } from './components/ImportReport'
 import { Toasts, type Toast } from './components/Toasts'
 import { Button } from './components/Button'
 
@@ -20,6 +21,8 @@ type FileMeta = {
   app: string
   context: string
   font: FontMetrics
+  version: string
+  issues: ImportIssue[]
 }
 
 function slug(value: string): string {
@@ -40,6 +43,7 @@ export default function App() {
   const [filter, setFilter] = useState<FilterId>('all')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [specOpen, setSpecOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(true)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [dragging, setDragging] = useState(false)
 
@@ -80,7 +84,11 @@ export default function App() {
       if (!raw) return
       const saved = JSON.parse(raw) as { meta?: FileMeta; rows?: Row[] }
       if (!saved.meta || !Array.isArray(saved.rows) || !saved.rows.length) return
-      setMeta(saved.meta)
+      setMeta({
+        ...saved.meta,
+        version: saved.meta.version ?? 'string-theory/1',
+        issues: Array.isArray(saved.meta.issues) ? saved.meta.issues : []
+      })
       setRows(saved.rows.map((row) => ({ ...row, busy: false, error: null })))
       pushToast('ok', `Restored ${saved.meta.app} · ${saved.rows.length} strings`)
     } catch {
@@ -109,7 +117,14 @@ export default function App() {
         pushToast('error', 'No strings found in that file.')
         return
       }
-      setMeta({ name: parsed.name, app: parsed.app, context: parsed.context, font: parsed.font })
+      setMeta({
+        name: parsed.name,
+        app: parsed.app,
+        context: parsed.context,
+        font: parsed.font,
+        version: parsed.version,
+        issues: parsed.issues
+      })
       setRows(
         parsed.rows.map((row) => ({
           ...row,
@@ -121,9 +136,14 @@ export default function App() {
       )
       setFilter('all')
       setQuery('')
+      setReportOpen(true)
       jumpCursor.current = 0
       pushToast('ok', `${parsed.rows.length} strings loaded from ${parsed.name}`)
-      parsed.warnings.slice(0, 2).forEach((warning) => pushToast('ok', warning))
+      const errors = parsed.issues.filter((issue) => issue.level === 'error')
+      if (errors.length) pushToast('error', errors[0].message)
+      else if (parsed.issues.length) {
+        pushToast('ok', `${parsed.issues.length} import note${parsed.issues.length === 1 ? '' : 's'}, see the strip under the filters`)
+      }
     },
     [pushToast]
   )
@@ -413,6 +433,15 @@ export default function App() {
           counts={counts.base}
           fitCounts={counts.fitCounts}
           total={rows.length}
+        />
+      ) : null}
+
+      {hasFile && reportOpen && meta?.issues?.length ? (
+        <ImportReport
+          fileName={meta.name}
+          version={meta.version}
+          issues={meta.issues}
+          onDismiss={() => setReportOpen(false)}
         />
       ) : null}
 

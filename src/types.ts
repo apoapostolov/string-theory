@@ -14,13 +14,36 @@ export type ParsedRow = {
   maxChars: number | null
 }
 
+export type ImportIssue = {
+  level: 'warn' | 'error'
+  code:
+    | 'no-strings'
+    | 'unknown-format'
+    | 'entry-skipped'
+    | 'missing-id'
+    | 'missing-text'
+    | 'duplicate-id'
+    | 'bad-default-max-px'
+    | 'bad-max-px'
+    | 'bad-max-chars'
+    | 'no-max-px'
+    | 'partial-max-px'
+    | 'no-font'
+    | 'bad-font-size'
+    | 'long-text'
+  message: string
+}
+
 export type ParsedFile = {
   name: string
   app: string
   context: string
   font: FontMetrics
+  /** Format id the file claims, or the one this build assumes. */
+  version: string
   rows: ParsedRow[]
-  warnings: string[]
+  /** Everything the import had to repair, in the order a reader wants it. */
+  issues: ImportIssue[]
 }
 
 export type Row = ParsedRow & {

@@ -18,6 +18,16 @@ export function fontString(font: FontMetrics): string {
 /** Rendered width of the string in the app's own font, in CSS pixels. */
 export function measurePx(text: string, font: FontMetrics): number {
   if (!text) return 0
+  if (!text.includes('\n')) return measureLine(text, font)
+  // A multi-line string can only wrap at its own breaks, so the widest line is
+  // the width that matters against the budget.
+  return text
+    .split('\n')
+    .reduce((widest, line) => Math.max(widest, measureLine(line, font)), 0)
+}
+
+function measureLine(text: string, font: FontMetrics): number {
+  if (!text) return 0
   const shorthand = fontString(font)
   const key = `${shorthand}|${font.letterSpacing}|${text}`
   const hit = cache.get(key)

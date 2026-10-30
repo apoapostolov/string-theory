@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "string-theory/1",
+  "title": "String Theory export",
+  "description": "One JSON file per application. Exports the app's own UI strings with a pixel budget so a human can rewrite them and the app can merge the rewrites back by id. Canonical form only: the loader also accepts documented aliases, but an exporter should emit exactly these names.",
+  "oneOf": [
+    { "$ref": "#/$defs/envelope" },
+    { "$ref": "#/$defs/stringArray" }
+  ],
+  "$defs": {
+    "envelope": {
+      "type": "object",
+      "required": ["strings"],
+      "properties": {
+        "format": {
+          "type": "string",
+          "pattern": "^string-theory/1$",
+          "description": "Format id. Optional on input, always written on output."
+        },
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Application name. Shown in the header, used for the export filename."
+        },
+        "context": {
+          "type": "string",
+          "description": "One line about the screen or feature, sent with every AI prompt."
+        },
+        "font": { "$ref": "#/$defs/font" },
+        "defaultMaxPx": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Pixel budget for strings that do not carry their own maxPx."
+        },
+        "strings": { "$ref": "#/$defs/stringArray" }
+      },
+      "additionalProperties": true
+    },
+    "stringArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/string" }
+    },
+    "font": {
+      "type": "object",
+      "required": ["family", "size"],
+      "description": "The font the pixel figures are measured in. Must match what the app renders with.",
+      "properties": {
+        "family": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Font family name, for example 'Segoe UI'. Fallback stacks are allowed."
+        },
+        "size": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Font size in CSS pixels."
+        },
+        "weight": {
+          "oneOf": [
+            { "type": "number", "minimum": 100, "maximum": 900 },
+            { "type": "string", "enum": ["regular", "normal", "medium", "semibold", "bold"] }
+          ],
+          "default": 400,
+          "description": "Numeric weight preferred. Strings are wider at heavier weights."
+        },
+        "letterSpacing": {
+          "type": "number",
+          "default": 0,
+          "description": "Extra tracking in CSS pixels, added per character."
+        }
+      },
+      "additionalProperties": true
+    },
+    "string": {
+      "type": "object",
+      "required": ["id", "text"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable id from the app catalogue. Unique per file."
+        },
+        "text": {
+          "type": "string",
+          "description": "The string as it ships today. Keep it on one line; a newline is measured at the widest line."
+        },
+        "where": {
+          "type": "string",
+          "description": "The line of UI where the string appears. Shown on hover and sent to the model."
+        },
+        "maxPx": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Pixel width the line must not exceed, measured in the file font."
+        },
+        "maxChars": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Character ceiling, only when the app enforces one itself."
+        },
+        "px": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Optional: the app's own measurement. Only used for the budget when maxPx is absent."
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

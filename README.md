@@ -60,6 +60,14 @@ The full field reference, accepted aliases and the merge rule are in [docs/forma
 
 `font` is not decoration. The pixel figures come from measuring each string in that font with a canvas, so the export has to declare what the app really renders with. If the family is not installed on this machine the browser substitutes one, and the settings panel says so.
 
+The contract, the aliases a rough exporter can get away with, the validity rules and the merge algorithm are in [docs/format.md](docs/format.md). The machine-readable version is [docs/string-theory.schema.json](docs/string-theory.schema.json), and any file can be checked before it is handed over:
+
+```powershell
+node scripts/validate-export.mjs path/to/app.strings.json
+```
+
+Errors block an export; warnings still load and show up in a dismissible strip above the list, along with anything the import had to repair. The same reference is available inside the app from the **info** button in the header.
+
 ## AI providers
 
 The provider set matches the one Lingarr Next exposes for AI work: OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Mistral, Qwen (DashScope), Z.ai, OpenCode Go, xAI, and a local OpenAI-compatible server for Ollama or LM Studio. Pick one in Settings, paste the key, fetch the model list (or type a model id), and it becomes the polish engine.
@@ -86,6 +94,7 @@ The server has no authentication because it only listens on loopback. Do not exp
 | `npm run build` | Typecheck and build the client into `dist/` |
 | `npm start` | Serve `dist/` and the API on 4317 |
 | `node scripts/smoke.mjs` | End-to-end check against a running server: provider round trip, prompt contents, usage accounting, budget guard, credential errors |
+| `node scripts/validate-export.mjs <file>` | Check an export against the format contract. `--strict` fails on warnings too |
 
 ## Known limits
 

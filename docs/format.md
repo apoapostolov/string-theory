@@ -1,43 +1,156 @@
-# Export format
+# String Theory export format
 
-`string-theory/1`. One JSON file per application. The app writes it from its own string catalogue; String Theory reads it and writes the same shape back with new values.
+`string-theory/1`. This is the contract between an application that owns UI strings and the human who rewrites them. One file per application.
+
+The app exports its strings with an id, the line of UI each one appears in, and the pixel width that line must not exceed. String Theory shows the source, measures the rewrite, and exports the same shape back with new text. Nothing in the exchange depends on the tool's own database: the file is the whole state.
+
+Machine-readable contract: [`string-theory.schema.json`](string-theory.schema.json). Checker: `node scripts/validate-export.mjs <file>`. In-app reference: the **info** button in the header.
+
+## Exchange model
+
+```
+app catalogue ──export──▶ app.strings.json ──▶ String Theory ──▶ app.rewritten.json ──▶ app catalogue
+                                │                                        │
+                          ids, text, where,                        text, previous,
+                          maxPx, font                              changed, by id
+```
+
+Three guarantees the tool relies on:
+
+1. **Ids survive the round trip.** A rewrite merges back by `id`, never by position or by matching text.
+2. **Budgets are absolute pixels, not relative to the current text.** `maxPx` is what the layout gives the string.
+3. **One font per file.** Every pixel figure in that file means the same thing.
+
+## Versioning
+
+| Change | Version |
+| --- | --- |
+| Add an optional field | `string-theory/1` |
+| Add an alias the loader accepts | `string-theory/1` |
+| Change what an existing field means, remove one, or require one | `string-theory/2` |
+
+The loader is deliberately more permissive than the schema: it accepts documented aliases, a bare array, and strings instead of objects, and it repairs what it can while saying so. The exporter should emit the canonical names only. An unknown `format` value loads with a warning under the v1 rules; a file that declares `string-theory/2` is still attempted, never silently refused.
+
+### Changelog
+
+- `string-theory/1` initial. Envelope `format`, `app`, `context`, `font`, `defaultMaxPx`, `strings`; string fields `id`, `text`, `where`, `maxPx`, `maxChars`, `px`.
 
 ## Envelope
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `format` | string | `string-theory/1`. Optional on input, always written on output. |
-| `app` | string | Application name. Shown in the header and used for the export filename. |
-| `context` | string | Optional one-liner about the screen or module. Sent to the model with every prompt. |
-| `font` | object | The font the pixel numbers are measured in. See below. |
-| `defaultMaxPx` | number | Fallback pixel budget for strings without their own `maxPx`. |
-| `strings` | array | The strings. A bare array also loads. |
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `format` | string | optional | `string-theory/1`. Written on output even when absent on input. |
+| `app` | string | recommended | Application name. Header label, export filename, AI prompt context. |
+| `context` | string | optional | One line about the screen or feature set. Sent with every AI prompt. |
+| `font` | object | required | The font the pixel figures are measured in. See below. |
+| `defaultMaxPx` | number | optional | Budget applied to strings that do not carry `maxPx`. |
+| `strings` | array | required | The strings. A bare array is also accepted as the whole document. |
 
-`font` accepts `family`, `size` (px), `weight` (numeric or `bold`/`semibold`), and `letterSpacing` (px, default 0). Aliases: `metrics` or `typography` for the object itself, `fontFamily`, `fontSize`, `fontWeight`, `tracking` inside it.
+Nothing else is required. Unknown envelope fields are preserved by no one and read by no one: they are ignored.
 
-Get this wrong and every pixel number in the tool is wrong, because the browser measures the string in that font. Match what the app actually renders with, including the weight.
+## Font block
+
+| Field | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `family` | string | `Segoe UI` (fallback only) | Font family the app renders with. A stack such as `Inter, sans-serif` is allowed. |
+| `size` | number | 14 | Font size in CSS pixels. |
+| `weight` | number \| string | 400 | 100 to 900, or `regular`, `medium`, `semibold`, `bold`. |
+| `letterSpacing` | number | 0 | Extra tracking in CSS pixels, added per character. |
+
+This block is load-bearing. Every PIL number in the tool comes from measuring the string in this font with a canvas `measureText` call. A file with no font block still loads, measured in 14px system text, and the import strip says the budget is an estimate.
+
+Measurement is done on the machine that runs the tool. If the family is not installed there, the browser substitutes a face and the numbers drift, so:
+
+- Prefer a font the app actually ships, not a system nickname.
+- Record the weight honestly. Bold UI labels are 6% wider than regular at the same size.
+- When the app already measures text in its own layout, still export `maxPx` from the container, and put the app's own figure in `px` for comparison.
 
 ## String fields
 
-| Field | Type | Notes |
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `id` | string | required | Stable id from the app catalogue. Unique within the file. |
+| `text` | string | required | The string as it ships today. Single line. |
+| `where` | string | recommended | Where it is shown, in words a reviewer can act on. |
+| `maxPx` | number | recommended | Pixel width the line must not exceed. Greater than zero. |
+| `maxChars` | integer | optional | Character ceiling, only when the app enforces one itself. |
+| `px` | number | optional | The app's own measurement. Only used as a budget when `maxPx` is absent. |
+
+Guidance that decides whether the export is useful:
+
+- **`id`** is a machine key, not a label. `transcripts.panel.title` merges; `Session Transcripts` does not.
+- **`where`** is the difference between a rewrite that fits and one that fits the wrong place. "Panel header, left of the refresh button" beats "header". It is shown on hover and included in the AI prompt.
+- **`maxPx`** is the space the layout gives the string: container width minus horizontal padding, in the font above. Not the current text width. A label in a 180px column with 12px of padding on each side has `maxPx: 156`.
+- **`text`** stays on one line. A string with a newline is measured at its widest line, since that is where it can wrap.
+- Escape quotes and backslashes as JSON requires. Do not HTML-escape: `&amp;` is content, not syntax.
+
+### Aliases
+
+The loader accepts these in place of the canonical name. An exporter should not need them; they exist so an app that already has a string dump does not have to be rewritten before its strings can be improved.
+
+| Canonical | Also accepted |
+| --- | --- |
+| `id` | `key`, `name`, `textId`, `text_id`, `stringId`, `string_id` |
+| `text` | `value`, `string`, `source`, `current`, `content`, `en`, `default` |
+| `where` | `info`, `place`, `location`, `context`, `usedIn`, `used_in`, `note` |
+| `maxPx` | `maxPIL`, `maxPil`, `max_pil`, `max_px`, `pilMax`, `pil_max`, `maxWidth`, `max_width`, `max` |
+| `maxChars` | `max_chars`, `maxLength`, `max_length`, `charLimit`, `char_limit`, `limit` |
+| `px` | `pil`, `PIL`, `width`, `measuredPx`, `measured_px` |
+| envelope `font` | `metrics`, `typography` |
+| envelope `strings` | `entries`, `items`, `messages`, `rows` |
+
+Numbers accept a trailing `px` or `ch`. Snake_case works for every documented field.
+
+## Validity
+
+**Errors** (the file is not a usable export):
+
+- No strings array at all.
+- An entry that is not an object and not a string.
+- `id` missing, empty, or not a string.
+- Duplicate `id`.
+- `text` missing or not a string.
+- `maxPx` present but not a number greater than zero.
+- `maxChars` present but not a positive integer.
+- `font` present but `family` or `size` invalid.
+
+**Warnings** (loads, but say so):
+
+- No `font` block, so measurement is an estimate.
+- No `maxPx` and no `defaultMaxPx`, so nothing can be flagged as wrapping.
+- Some strings without a budget while others have one.
+- Generated ids for entries that had none: those rewrites cannot merge back.
+- Duplicate ids suffixed `#2`, `#3` in the tool: only the first merges at the original id.
+- Empty `text`, or `text` longer than 2000 characters.
+- A `format` value this build does not know.
+- No `where` on any string.
+
+## How the numbers are produced
+
+Character count is `text.length`: UTF-16 code units. That is what the app's own length checks usually compare against. Grapheme clusters can differ for flags, combining accents and emoji sequences; if the app counts graphemes, expect off-by-one differences.
+
+PIL is rendered pixel length: a canvas `measureText` call with the declared font at the declared size and weight, letter spacing applied per character, rounded to one decimal and shown as a whole number. For a multi-line string it is the widest line.
+
+It models a single-line label well. It cannot know about:
+
+- kerning between glyphs that fall back to a different face,
+- subpixel positioning and font hinting on the target OS,
+- container padding, borders, or an ellipsis the app adds itself.
+
+Treat PIL as a tight guardrail, not a promise. A string at 100% of its budget in this tool may still wrap if the app renders with a different face.
+
+Verdicts:
+
+| Verdict | Condition | Meaning |
 | --- | --- | --- |
-| `id` | string | Required. Stable id from the app's catalogue. Duplicates are suffixed `#2`, `#3` so they stay editable. |
-| `text` | string | Required. The string as it ships today. |
-| `where` | string | The line of UI where it appears. Shown on hover and sent to the model, so be specific: "Panel header, left of the refresh button" beats "header". |
-| `maxPx` | number | Pixel width the line must not exceed. Without it the row cannot go red. `220px` is parsed as 220. |
-| `maxChars` | number | Character ceiling, only when the app enforces one itself. |
+| `ok` (green) | below the amber threshold | Fits with headroom. |
+| `near` (amber) | at or above the threshold, up to budget | Fits now; a longer word, a translation or a larger UI scale spills. |
+| `over` (red) | past `maxPx` | The line wraps where the app expected one line. |
+| `none` | no budget | No verdict possible. |
 
-Aliases, all optional:
+The amber threshold is a tool setting, 90% by default. `maxChars`, when present, produces its own verdict for the characters meter; otherwise that meter mirrors the pixel verdict.
 
-- id: `key`, `name`, `textId`, `stringId`
-- text: `value`, `string`, `source`, `current`, `content`, `en`, `default`
-- where: `info`, `place`, `location`, `context`, `usedIn`, `note`
-- maxPx: `maxPIL`, `maxPil`, `max_px`, `max_pil`, `pilMax`, `pil_max`, `maxWidth`, `max_width`, `max`
-- maxChars: `max_chars`, `maxLength`, `max_length`, `charLimit`, `char_limit`, `limit`
-
-Any entry may also carry `px` (the app's own measurement). When `maxPx` is absent it is used as the budget; otherwise it is ignored. Snake_case works for every documented field.
-
-## What the app gets back
+## What comes back
 
 ```json
 {
@@ -52,55 +165,87 @@ Any entry may also carry `px` (the app's own measurement). When `maxPx` is absen
       "text": "Transcripts for this session",
       "previous": "Session Transcripts",
       "where": "Transcript panel header, left of the refresh button",
-      "maxPx": 180,
-      "maxChars": null,
+      "maxPx": 150,
+      "maxChars": 22,
       "changed": true
     }
   ]
 }
 ```
 
-Merge rule on the app side: map by `id`, take `text`. Skip entries where `changed` is false if you only want to touch what was rewritten. `previous` lets an importer show a diff or support an undo.
+The exported strings keep the order they had in the working set, which is the order they were imported in. Every row is written, including untouched ones, so the importer can diff the whole catalogue.
 
-## How the numbers are produced
+### Merge algorithm
 
-Character count is `text.length`, code units, not grapheme clusters. Close enough for UI copy; a flag emoji or a combining accent can differ from what a designer counts.
+```
+for entry in rewritten.strings:
+    if entry.changed is false: continue          # nothing to apply
+    record = catalogue[entry.id]                 # ids are the join key
+    if record is missing: log and skip           # renamed or deleted since export
+    if record.text != entry.previous: conflict   # edited elsewhere meanwhile
+    record.text = entry.text
+```
 
-Pixel length is what this tool calls PIL: a canvas `measureText` call with the declared font, rounded to one decimal and displayed as a whole number. It is a good model of a single-line label in the same font at the same size; it cannot know about kerning pairs between a font's fallback glyphs, subpixel positioning, or a container that pads the text.
+`previous` is what makes the third check possible. Do not drop it during import, and do not merge by position.
 
-Verdict per string:
+## Validating
 
-- `ok` below the amber threshold
-- `near` at or above it, up to the budget
-- `over` past `maxPx`
+```bash
+node scripts/validate-export.mjs samples/demo.strings.json
+node scripts/validate-export.mjs path/to/app.strings.json --strict
+```
 
-The amber threshold is a setting, 90% by default. `maxChars`, when present, produces its own verdict for the chars meter; otherwise the chars meter shows the pixel verdict.
+Exit code 0 for a valid file, 1 for errors (or for warnings under `--strict`), 2 for an unreadable file. Warnings are printed with the field path.
 
-## Prompt budget
-
-The model cannot measure pixels, so the prompt converts the budget into characters: roughly `maxPx / (fontSize * 0.52)` for regular weights, with a 6% widening for weights 600 and up. It is told both the hard ceiling and a comfortable target at 94% of it. The reply is measured on arrival like any other edit.
+For schema validation in another toolchain, point it at [`string-theory.schema.json`](string-theory.schema.json) (JSON Schema 2020-12). The schema describes the canonical form; the aliases table above is a loader convenience that the schema does not model.
 
 ## Writing an exporter
 
+The work is enumeration and measurement, not formatting.
+
 ```js
-// Node or browser. Walk the app's catalogue, measure each label where it renders,
-// and emit one entry per visible string.
-const strings = Object.entries(catalogue).map(([id, text]) => ({
+const strings = catalogue.map(({ id, text, where, maxPx, maxChars }) => ({
   id,
   text,
-  where: locations[id] ?? '',
-  maxPx: budgets[id] ?? 200,
-  maxChars: characterLimits[id]
+  where,
+  maxPx,
+  ...(maxChars ? { maxChars } : {})
 }))
 
-await writeFile('session-transcripts.strings.json', JSON.stringify({
+const file = {
   format: 'string-theory/1',
   app: 'Session Transcripts',
   context: 'Foundry VTT module settings and transcript panel',
   font: { family: 'Segoe UI', size: 14, weight: 400, letterSpacing: 0 },
   defaultMaxPx: 200,
   strings
-}, null, 2))
+}
+
+await writeFile('session-transcripts.strings.json', JSON.stringify(file, null, 2))
 ```
 
-`maxPx` should come from the layout, not from the current text: it is the width the container gives the label. If a label sits in a fixed 180px column with 12px of padding on each side, the budget is 156.
+Where the values come from:
+
+- **id**: whatever the app already uses to look strings up. If it has none, derive a stable one from the feature and the role (`settings.retention`) and never rename it afterwards.
+- **text**: the shipped value, not the designer's copy in another document.
+- **where**: written by whoever built the screen. A one-line comment per string is enough; inventing a location is worse than leaving it out.
+- **maxPx**: from the layout. Fixed column widths give a number directly. Responsive layouts give the narrowest breakpoint's width, because that is where it wraps first.
+- **maxChars**: only if the app itself rejects longer strings.
+- **font**: the same family, size and weight the widget uses. Read it from the theme, do not retype it.
+
+### Anti-patterns
+
+- **Character budgets dressed as pixels.** `maxPx: text.length * 7` guarantees the tool approves what already exists.
+- **A single global font when the app uses several.** Split into one file per surface, or use the dominant font and say so in `context`.
+- **`where` copied from the key.** `transcripts.panel.title` is not a location.
+- **Every string, including debug and log messages.** They do not have a layout budget, so they cannot be judged. Export what a user reads.
+- **Regenerating ids on every export.** The merge breaks silently and the next person trusts a diff that means nothing.
+
+## Maintenance
+
+A change to this contract touches four homes, and they must agree:
+
+1. `docs/format.md` and `docs/string-theory.schema.json`: canonical.
+2. `src/lib/format.ts`: the loader that implements the repairs above.
+3. `src/components/FormatSpec.tsx`: the in-app reference a user reads.
+4. `AGENTS.md` for the repo and the Hermes skill `string-theory-handoff`, which other agents follow when Apo says he dislikes a set of strings.
