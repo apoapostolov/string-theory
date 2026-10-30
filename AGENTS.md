@@ -8,12 +8,18 @@ Read [`docs/format.md`](docs/format.md) before touching the loader, the measurem
 
 ```powershell
 npm install
-npm run dev        # API 4317 with --watch, Vite 5477 proxying /api
-npm run build      # tsc --noEmit && vite build
-npm start          # serve dist + API on 4317
-npm run smoke      # end-to-end provider path, needs the server running
+npm run dev          # supervisor, dev mode: Vite 4317 with HMR, API 4318 behind /api
+npm run build        # tsc --noEmit && vite build
+npm run serve        # supervisor in the mode from serve.config.json
+npm run serve:status # mode, url, pid, health
+npm run serve:restart
+npm run serve:stop
+npm start            # API only, prod assets, no supervisor
+npm run smoke        # end-to-end provider path, needs the server up
 node scripts/validate-export.mjs <file.json> [--strict]
 ```
+
+The app has one URL in both modes: <http://127.0.0.1:4317>. `scripts/serve.mjs` supervises both children, logs to `data/server.log`, restarts a crashed child with backoff, and refuses to start a second copy. `scripts/install-startup.ps1` registers the hidden logon task and the desktop shortcut, and runs `serve-hidden.vbs`, so nothing opens a console window.
 
 There is no test framework. `scripts/smoke.mjs` is the integration test: it starts a stub OpenAI-compatible provider, runs real polish calls through the server, checks prompt contents, token and cost accounting, the budget 402 and the missing-provider 400, then restores the config it changed. It must stay at 14/14.
 
@@ -32,6 +38,10 @@ There is no test framework. `scripts/smoke.mjs` is the integration test: it star
 | `src/components/ImportReport.tsx` | Shows what the import repaired. |
 | `src/components/SettingsPanel.tsx` | Providers, credentials, passes, budgets, inbox folder, measurement font, usage. |
 | `server/index.mjs` | Routes, static serving, edit-free orchestration. |
+| `scripts/serve.mjs` | Supervisor: mode, ports, child restarts, log rotation, pid file, status/stop/restart/mode/open. |
+| `scripts/serve-hidden.vbs` | Hidden launcher used by the logon task and the desktop shortcut. |
+| `scripts/install-startup.ps1` | Registers the logon task and the shortcut; `-Remove` undoes both. |
+| `serve.config.json` | `mode` (dev or prod) and `open`, read by every entry point. |
 | `server/inbox.mjs` | Inbox scan and read. Lists exports with app name, string count and issue counts. |
 | `server/providers.mjs` | Provider registry and the three wire formats (OpenAI-compatible, Anthropic, Gemini). |
 | `server/store.mjs` | Config, AES-256-GCM key vault, usage ledger. |
@@ -65,6 +75,9 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 ## Invariants
 
 - Loopback only. No auth on the API because it never leaves `127.0.0.1`; do not add a public bind, a tunnel, or a CORS opener.
+- One URL, two modes. 4317 is the app in both: Vite owns it in dev and proxies `/api` to 4318; the API process owns it in prod and serves `dist/`. Never add a third port or move the app off 4317.
+- The supervisor owns the ports. Do not run `npm start` or a bare `vite` while it is up; stop it with `npm run serve:stop` first, and start it detached, never as a child of a shell that will exit.
+- Nothing starts a visible console window. Background starts go through `serve-hidden.vbs` or a scheduled task, never `cmd /c start` in a script.
 - Provider keys are sealed with AES-256-GCM under `data/master.key` and never returned to the browser. Only a masked hint may cross the wire.
 - `data/` is runtime state and gitignored. Do not commit a config, a ledger or a key file.
 - `inbox/` is input only. Never write to it from the tool, never delete from it, never commit its contents. A rewritten file leaves as a download.
@@ -83,7 +96,7 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 ## Verifying a change
 
 1. `npm run build` clean.
-2. `npm start`, then `npm run smoke` at 14/14.
+2. `npm run serve:status` healthy, then `npm run smoke` at 14/14.
 3. `node scripts/validate-export.mjs samples/demo.strings.json` valid.
 4. Load the app, load the sample, and check the three bands still render: green row, amber row, red row with an overflow figure.
 5. Put two files in `inbox/`, open both, edit one, switch, reload: the picker must show both progress numbers and the edits must survive.

@@ -13,12 +13,37 @@ Node 22 or newer.
 ```powershell
 npm install
 npm run build
-npm start
+npm run dev
 ```
 
-`npm start` serves the built client and the API on <http://127.0.0.1:4317>. For development, `npm run dev` runs the API with `--watch` on 4317 and Vite on 5477 with `/api` proxied.
+One URL in both modes, <http://127.0.0.1:4317>. In dev the supervisor starts Vite on 4317 with hot module replacement and the API on 4318 behind the `/api` proxy, so a client edit lands in the open page and a `server/` edit restarts the API, without touching your working sets.
 
-To launch it without a console window, run `start-hidden.vbs`. It starts the server, writes its output to `data/server.log`, and opens the app in the default browser. Point a shortcut at that file if you want it in the Start menu.
+### Keep it running
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install-startup.ps1
+```
+
+That registers a hidden logon task with restart-on-failure and puts a **String Theory** shortcut on the desktop. The shortcut starts the server when it is down and opens the browser; when the server is already up it only opens the browser. Nothing appears in the taskbar and no console window opens. Undo it with `-Remove`.
+
+| Command | What it does |
+| --- | --- |
+| `npm run serve:status` | mode, URL, pid and health of the running server |
+| `npm run serve:restart` | stop, start detached, wait for health, return |
+| `npm run serve:stop` | stop the supervisor and its children |
+| `node scripts/serve.mjs open` | start if needed, then open the browser |
+
+Logs go to `data/server.log`, rotated at 5 MB. A crashed child is restarted with backoff, and the supervisor itself is restarted by the task.
+
+### Switch to prod
+
+```powershell
+npm run build
+node scripts/serve.mjs mode prod
+npm run serve:restart
+```
+
+Prod serves `dist/` and the API from one process on 4317, with no Vite and no hot reload. Going back is `mode dev` and a restart. The mode lives in `serve.config.json`, so the hidden launcher and the logon task follow it without being edited.
 
 ## Use it
 
@@ -116,15 +141,17 @@ The server has no authentication because it only listens on loopback. Do not exp
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | API on 4317 with reload, Vite on 5477 |
+| `npm run dev` | Supervisor in dev mode: Vite with hot reload on 4317, API on 4318 |
 | `npm run build` | Typecheck and build the client into `dist/` |
-| `npm start` | Serve `dist/` and the API on 4317 |
+| `npm run serve` | Supervisor in the mode from `serve.config.json` |
+| `npm start` | API server alone on 4317, serving `dist/`. No supervisor, no auto-restart |
 | `node scripts/smoke.mjs` | End-to-end check against a running server: provider round trip, prompt contents, usage accounting, budget guard, credential errors |
 | `node scripts/validate-export.mjs <file>` | Check an export against the format contract. `--strict` fails on warnings too |
 
 ## Known limits
 
-- One app export at a time, one locale. There is no multi-language string table.
+- One locale per file. There is no multi-language string table; a second locale is a second export.
+- The app is a single-operator tool on loopback. There is no auth, no sharing and no remote access.
 - Pixel numbers depend on the declared font being installed and on canvas measuring text the way the app lays it out. Letter spacing and weight are honoured; kerning-only differences and platform font hinting are not.
 - The AI is per string, deliberately. There is no "polish all" because an unreviewed batch defeats the point of rewriting in your own words.
 - Cost estimates are a local price table, not provider billing. Treat them as a guardrail, not an invoice.
