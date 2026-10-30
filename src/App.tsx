@@ -31,6 +31,7 @@ import { SourcePicker, type SourceSummary } from './components/SourcePicker'
 import { StylePanel } from './components/StylePanel'
 import { Toasts, type Toast } from './components/Toasts'
 import { TagBar, type TagCount } from './components/TagBar'
+import { ChangePrompt } from './components/ChangePrompt'
 import { customTagsIn, isStandardTag, normalizeTag, tagLabel } from './lib/tags'
 import { Button } from './components/Button'
 
@@ -117,6 +118,7 @@ export default function App() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<FilterId>('all')
+  const [promptOpen, setPromptOpen] = useState(false)
   const [activeTags, setActiveTags] = useState<string[]>([])
   const [tagMode, setTagMode] = useState<'any' | 'all'>('any')
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -911,9 +913,20 @@ export default function App() {
           near={counts.fitCounts.near}
           onCopy={onCopy}
           onExport={onExport}
+          onPrompt={() => setPromptOpen(true)}
           onRevertAll={onRevertAll}
           onJump={onJump}
           canJump={counts.fitCounts.over + counts.fitCounts.near > 0}
+        />
+      ) : null}
+
+      {hasFile ? (
+        <ChangePrompt
+          open={promptOpen}
+          onClose={() => setPromptOpen(false)}
+          rows={rows}
+          app={meta?.app || 'this app'}
+          onToast={pushToast}
         />
       ) : null}
 

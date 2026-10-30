@@ -43,6 +43,24 @@ Verdicts are a left border and a tint: green fits, amber fits but reads badly at
 
 Fonts are measured as declared: family, size, weight and letter spacing, per file, with an optional per-string override for the panel title that is 16px inside a file of 14px labels.
 
+## Changes, written as instructions
+
+Not every app can read a JSON file back, and waiting on a converter is a good way to never see a rewrite land. `Generate Prompt`, at the end of the footer, writes the changed strings as instructions instead: one line per change, ready to paste into whatever agent owns the app.
+
+```
+Apply 2 string changes in Session Transcripts.
+
+## Transcripts
+- Replace "Start recording" with "Start capture" in Button text (id: transcripts.record.start)
+- Replace "Session Transcripts" with "Transcripts" in Heading (id: transcripts.panel.title)
+```
+
+Each line names the text as it is now, the text it must become, and the section the tags describe. The rules above the list say to match exactly, to touch nothing else, to keep placeholders and shortcuts byte for byte, and to report a line it could not find rather than guess at one. The list closes by asking for a count of what was applied.
+
+The grouping comes from the tags: the heading is the part of the app (`Transcripts`, `Settings`, `Upload`) and the line names the role inside it (`Button text`, `Hint`, `Error`). Two switches change the shape — grouping can be off, and ids can be left out unless a source text appears twice with different rewrites, in which case the id stays because it is the only thing that separates the lines. Quotes and line breaks inside a string are escaped the way JSON escapes them, so a line stays one line.
+
+`Copy prompt` takes the whole thing; `Copy lines only` takes just the change list for an agent that already knows the job. Nothing about this needs a metadata file, an exporter change, or an app that speaks the format.
+
 ## The round trip
 
 ```

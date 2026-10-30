@@ -253,6 +253,10 @@ for entry in rewritten.strings:
 
 `previous` is what makes the third check possible. Do not drop it during import, and do not merge by position.
 
+## Changes without the file
+
+An app that cannot read this format back still has options. `Generate Prompt` in the footer writes the changed strings as instructions: one line per change, `Replace "old" with "new" in <section> (id: …)`, grouped by the part of the app the tags name, with the matching rules stated above the list. It reads from the working set, not from the file, so nothing has to be exported first. Quotes and line breaks are escaped the JSON way so every change stays on one line.
+
 ## Validating
 
 ```bash

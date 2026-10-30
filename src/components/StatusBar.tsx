@@ -1,4 +1,4 @@
-import { ArrowRight, Copy, DownloadSimple, WarningCircle } from '@phosphor-icons/react'
+import { ArrowRight, Copy, DownloadSimple, Sparkle, WarningCircle } from '@phosphor-icons/react'
 import { Button } from './Button'
 
 type Props = {
@@ -10,12 +10,13 @@ type Props = {
   near: number
   onCopy: () => void
   onExport: () => void
+  onPrompt: () => void
   onRevertAll: () => void
   onJump: () => void
   canJump: boolean
 }
 
-export function StatusBar({ done, wip, total, dirty, over, near, onCopy, onExport, onRevertAll, onJump, canJump }: Props) {
+export function StatusBar({ done, wip, total, dirty, over, near, onCopy, onExport, onPrompt, onRevertAll, onJump, canJump }: Props) {
   const pct = total ? Math.round((done / total) * 100) : 0
 
   return (
@@ -72,6 +73,16 @@ export function StatusBar({ done, wip, total, dirty, over, near, onCopy, onExpor
         <Button size="sm" variant="primary" onClick={onExport} className="h-8">
           <DownloadSimple size={13} />
           Export JSON
+        </Button>
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={onPrompt}
+          title="Write the changed strings as instructions for the agent that owns this app"
+          className="h-8"
+        >
+          <Sparkle size={13} />
+          Generate Prompt
         </Button>
       </div>
     </footer>

@@ -126,6 +126,14 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - A format change touches `docs/format.md`, the schema, `FormatSpec` and this prompt in the same commit. `scripts/validate-export.mjs` is the arbiter: an export produced from the prompt must exit 0 or the prompt is wrong.
 - The instructions open from two places on purpose: the inbox empty state, and an AI Instructions button in the picker header, which must work when files are already present.
 
+## Change prompt
+
+- `shared/change-prompt.mjs` builds the instructions from the working set, and `scripts/change-prompt.test.mjs` checks it without a browser (`npm run test:changes`). One line per changed string, in the shape `Replace "old" with "new" in <section> (id: …)`.
+- A line must survive being pasted alone: it names its own area and role unless the group heading above it already says the area, and quotes and line breaks are escaped the JSON way so the line never wraps.
+- An id is dropped only when the source text is unique in the file. Two rows with one source and two rewrites would otherwise be indistinguishable lines.
+- The section comes from the tags, never from an invented grouping: first tag is the role, the rest are the area. An untagged row falls back to the first segment of its `where` line rather than being hidden.
+- `Generate Prompt` sits last in the footer, after `Export JSON`, with the same primary (ink) treatment. Nothing about this feature requires an exporter, a converter or a file round trip.
+
 ## Tags
 
 - The vocabulary lives in `shared/tags.mjs` and nowhere else. The app, the parser, the validator and the prompt all read it, so a new standard tag is one entry plus the docs table.
