@@ -144,33 +144,36 @@ export function ProviderAuth({ provider, payload, onPatch, onToast }: Props) {
     <div className="rounded-lg border border-line bg-ink-900 px-3 py-2.5">
       <div className="flex items-center gap-2">
         <span className="text-[10px] tracking-[0.07em] text-fg-faint uppercase">Credentials</span>
-        <div className="ml-auto flex rounded-md border border-line bg-ink-850 p-0.5">
-          <button
-            type="button"
-            onClick={() => void setMode('key')}
-            className={`flex h-6 items-center gap-1 rounded px-2 text-[11px] transition-colors ${
-              mode === 'key' ? 'bg-ink-800 text-fg' : 'text-fg-faint hover:text-fg-dim'
-            }`}
-          >
-            <Key size={10} />
-            API key
-          </button>
-          <button
-            type="button"
-            onClick={() => void setMode('oauth')}
-            className={`flex h-6 items-center gap-1 rounded px-2 text-[11px] transition-colors ${
-              mode === 'oauth' ? 'bg-ink-800 text-fg' : 'text-fg-faint hover:text-fg-dim'
-            }`}
-          >
-            <SignIn size={10} />
-            {oauthConfig.label} sign-in
-          </button>
-        </div>
+      </div>
+
+      <div role="group" aria-label="How String Theory authenticates to this provider" className="mt-2 grid grid-cols-2 gap-1 rounded-lg border border-line bg-ink-850 p-1">
+        <button
+          type="button"
+          onClick={() => void setMode('key')}
+          aria-pressed={mode === 'key'}
+          className={`flex h-7 items-center justify-center gap-1.5 rounded-md text-[11.5px] transition-colors ${
+            mode === 'key' ? 'bg-ink-750 text-fg shadow-[inset_0_0_0_1px_var(--color-line-strong)]' : 'text-fg-faint hover:bg-ink-800 hover:text-fg-dim'
+          }`}
+        >
+          <Key size={11} />
+          API key
+        </button>
+        <button
+          type="button"
+          onClick={() => void setMode('oauth')}
+          aria-pressed={mode === 'oauth'}
+          className={`flex h-7 items-center justify-center gap-1.5 rounded-md text-[11.5px] transition-colors ${
+            mode === 'oauth' ? 'bg-ink-750 text-fg shadow-[inset_0_0_0_1px_var(--color-line-strong)]' : 'text-fg-faint hover:bg-ink-800 hover:text-fg-dim'
+          }`}
+        >
+          <SignIn size={11} />
+          Sign in
+        </button>
       </div>
 
       {mode === 'key' ? (
-        <p className="mt-1.5 text-[11px] leading-relaxed text-fg-faint">
-          Paste a key below. {oauthConfig.allowsTokenImport ? 'The sign-in tab works too, if you have a Grok subscription.' : ''}
+        <p className="mt-2 text-[11px] leading-relaxed text-fg-faint">
+          Paste a key below. {oauthConfig.allowsTokenImport ? `Or sign in with a ${oauthConfig.label} account that already has access, and String Theory keeps the session sealed on this machine.` : ''}
         </p>
       ) : (
         <div className="mt-2 space-y-2">

@@ -99,7 +99,7 @@ export const PROVIDERS = [
     kind: 'openai',
     endpoint: 'https://api.x.ai/v1',
     needsKey: true,
-    hint: 'xai-... from console.x.ai (Lingarr OAuth tokens are not reusable here)',
+    hint: 'An API key from console.x.ai, or sign in with the xAI account that has Grok access.',
     models: ['grok-4.5', 'grok-4', 'grok-3-mini']
   },
   {

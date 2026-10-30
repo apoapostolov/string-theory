@@ -224,7 +224,7 @@ export function SettingsPanel({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <Section title="AI provider" hint="Same provider set as Lingarr Next. Keys live in an encrypted local file, never in the browser.">
+          <Section title="AI provider" hint="Keys and sign-in sessions live in an encrypted local file, never in the browser.">
             <div className="grid grid-cols-2 gap-1.5">
               {providers.map((provider: ProviderInfo) => {
                 const connected = payload?.keys[provider.id]?.present
