@@ -15,6 +15,10 @@
   <img alt="smoke" src="https://img.shields.io/badge/smoke-19%2F19-3DDC97?style=flat-square">
 </p>
 
+<p align="center">
+  <img src="docs/banner.png" alt="String Theory: rewrite an app's UI strings against the pixel budget the layout gives them" width="100%">
+</p>
+
 String Theory is a local tool for rewriting an application's interface strings against the width the layout actually gives them. The app exports its strings with an id, the screen each one appears on, and the pixel budget for that line. String Theory shows the source on the left and your rewrite on the right, wraps both the way the layout will, and marks every string as untouched, in progress, or finished. The replacements export in the same shape they arrived in.
 
 It runs on your machine, listens on `127.0.0.1`, keeps working sets in the browser, and uploads nothing except the AI calls you ask for.
@@ -91,10 +95,6 @@ The list is the product, so it is built to be read rather than looked at:
 - Contrast is computed, not eyeballed: `npm run check:contrast` checks 17 text and border pairs against WCAG 2.1 AA, and the build is expected to keep all of them passing.
 
 ## Quick start
-
-<p align="center">
-  <img src="docs/banner.png" alt="String Theory: rewrite an app's UI strings against the pixel budget the layout gives them" width="100%">
-</p>
 
 Node 22 or newer.
 
