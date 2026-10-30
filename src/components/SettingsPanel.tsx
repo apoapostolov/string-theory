@@ -220,7 +220,9 @@ export function SettingsPanel({
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-line px-5">
           <div>
             <h2 id={titleId} className="text-[13.5px] font-semibold text-fg">Settings</h2>
-            <p className="text-[11px] text-fg-faint">Provider credentials, pass defaults, budgets</p>
+            <p className="text-[11px] text-fg-faint">
+              {tab === 'provider' ? 'Who runs the passes, and how it signs in' : 'Passes, budgets, files and measurement'}
+            </p>
           </div>
           <Button size="sm" variant="quiet" onClick={onClose} className="h-8 w-8">
             <X size={14} />
