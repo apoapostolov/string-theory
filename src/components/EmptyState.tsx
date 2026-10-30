@@ -63,6 +63,10 @@ export function EmptyState({ onOpen, onSample, onFormat }: Props) {
           <p className="mt-1 text-[11px] leading-relaxed text-fg-faint">
             A bare array of objects works too. Field aliases and snake_case are tolerated, so most exporters can dump straight into it.
           </p>
+          <p className="mt-2 border-t border-line pt-2 text-[11px] leading-relaxed text-fg-faint">
+            Several projects at once? The <span className="text-fg-dim">Sources</span> picker in the header lists every export in the
+            inbox folder, with your rewrite progress per file.
+          </p>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import type { ConfigPayload, ModeId, UsageSummary } from '../types'
+import type { ConfigPayload, ModeId, UsageSummary, InboxListing } from '../types'
 
 export type PolishRequest = {
   item: {
@@ -71,7 +71,12 @@ export const api = {
     ),
   polish: (body: PolishRequest) =>
     request<PolishResponse>('/api/polish', { method: 'POST', body: JSON.stringify(body) }),
-  usage: () => request<UsageSummary>('/api/usage')
+  usage: () => request<UsageSummary>('/api/usage'),
+  inbox: () => request<InboxListing>('/api/files'),
+  openInboxFile: (id: string) =>
+    request<{ id: string; name: string; dir: string; bytes: number; mtime: number; json: unknown }>(
+      `/api/files/open?id=${encodeURIComponent(id)}`
+    )
 }
 
 export { ApiError }

@@ -21,25 +21,31 @@ There is no test framework. `scripts/smoke.mjs` is the integration test: it star
 
 | Path | Responsibility |
 | --- | --- |
-| `src/lib/format.ts` | Loader. Implements every repair and issue code listed in `docs/format.md`. The only place that interprets an export. |
+| `shared/parse-export.mjs` | Loader. Implements every repair and issue code in `docs/format.md`. Loaded by the client and by the server, which needs the same verdict to describe an inbox file. Never fork it. |
+| `src/lib/format.ts` | Typed face of the shared loader, for the client. |
 | `src/lib/metrics.ts` | Canvas measurement, fit bands, cached. The only place pixels are computed in the client. |
 | `src/lib/api.ts` | Typed wrapper over the local API. |
-| `src/App.tsx` | Working set, filters, persistence, export payload. |
+| `src/App.tsx` | Library of working sets, per-file editing state, filters, export payload. |
+| `src/components/SourcePicker.tsx` | The source dropdown: inbox files, open working sets, per-file progress. |
 | `src/components/StringRow.tsx` | One string: source, where line, input, both meters, per-row passes. |
 | `src/components/FormatSpec.tsx` | In-app format reference. Must match `docs/format.md`. |
 | `src/components/ImportReport.tsx` | Shows what the import repaired. |
-| `src/components/SettingsPanel.tsx` | Providers, credentials, passes, budgets, measurement font, usage. |
+| `src/components/SettingsPanel.tsx` | Providers, credentials, passes, budgets, inbox folder, measurement font, usage. |
 | `server/index.mjs` | Routes, static serving, edit-free orchestration. |
+| `server/inbox.mjs` | Inbox scan and read. Lists exports with app name, string count and issue counts. |
 | `server/providers.mjs` | Provider registry and the three wire formats (OpenAI-compatible, Anthropic, Gemini). |
 | `server/store.mjs` | Config, AES-256-GCM key vault, usage ledger. |
 | `server/polish.mjs` | Prompt building, character-budget estimate, output sanitising. |
 | `server/pricing.mjs` | USD per million tokens, ported from Lingarr Next. |
 | `samples/demo.strings.json` | The sample the empty state loads. Keep one row in each band (ok, near, over). |
+| `inbox/` | Inputs written by other projects. Gitignored except `inbox/README.md`. |
 
 ## Contract rules
 
 - `string-theory/1` is additive. Adding an optional field or an alias is v1; changing what a field means needs `/2` and a changelog entry in `docs/format.md`.
 - The loader is more forgiving than the exporter: accept documented aliases, bare arrays, string entries and numbers with units. Repair with an issue, never silently.
+- One parser. `shared/parse-export.mjs` is imported by the client and by the server's inbox listing; a second implementation of the format is a defect even if it agrees today.
+- Working sets are per file, keyed by `inbox:<relative path>` or `file:<name>:<size>:<mtime>`, and persisted under `string-theory.library.v2`. Switching sources must never drop another file's edits. A file that leaves the inbox keeps its working set until the operator discards it.
 - Issue codes in `src/types.ts` are a closed set. A new repair needs a code, a message in the loader, and a row in the validity table in `docs/format.md`.
 - Never merge by position or by text. Rewrites join on `id`; `previous` is what makes conflict detection possible, so it is always written.
 - Measurement lives in `src/lib/metrics.ts`. No second `measureText` call anywhere, and no character-count approximation dressed up as a pixel figure.
@@ -61,6 +67,7 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - Loopback only. No auth on the API because it never leaves `127.0.0.1`; do not add a public bind, a tunnel, or a CORS opener.
 - Provider keys are sealed with AES-256-GCM under `data/master.key` and never returned to the browser. Only a masked hint may cross the wire.
 - `data/` is runtime state and gitignored. Do not commit a config, a ledger or a key file.
+- `inbox/` is input only. Never write to it from the tool, never delete from it, never commit its contents. A rewritten file leaves as a download.
 - The client is built offline: no CDN fonts, no remote scripts, no analytics.
 - Budgets are a guardrail, not billing. Keep the "unpriced" warning honest rather than inventing rates.
 - Per-string AI passes only. There is no "polish all": an unreviewed batch defeats the purpose of rewriting in a human's own words.
@@ -79,4 +86,5 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 2. `npm start`, then `npm run smoke` at 14/14.
 3. `node scripts/validate-export.mjs samples/demo.strings.json` valid.
 4. Load the app, load the sample, and check the three bands still render: green row, amber row, red row with an overflow figure.
-5. Any format change: re-read the four homes above and diff them against each other.
+5. Put two files in `inbox/`, open both, edit one, switch, reload: the picker must show both progress numbers and the edits must survive.
+6. Any format change: re-read the four homes above and diff them against each other.

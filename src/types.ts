@@ -53,6 +53,56 @@ export type Row = ParsedRow & {
   error: string | null
 }
 
+export type FileMeta = {
+  name: string
+  app: string
+  context: string
+  font: FontMetrics
+  /** Format id the file claims, or the one this build assumes. */
+  version: string
+  /** Everything the import had to repair. */
+  issues: ImportIssue[]
+}
+
+/** One export found in the inbox folder, described without opening it. */
+export type InboxEntry = {
+  id: string
+  name: string
+  group: string
+  bytes: number
+  mtime: number
+  app: string
+  version: string
+  count: number
+  errors: number
+  warnings: number
+  broken: string
+}
+
+export type InboxListing = {
+  dir: string
+  exists: boolean
+  files: InboxEntry[]
+}
+
+export type DocumentProgress = {
+  changed: number
+  total: number
+  percent: number
+}
+
+/** A working set kept in the browser for one file. */
+export type DocumentRecord = {
+  id: string
+  label: string
+  fileName: string
+  origin: 'inbox' | 'file'
+  path: string
+  meta: FileMeta
+  rows: Row[]
+  savedAt: string
+}
+
 export type ProviderInfo = {
   id: string
   label: string
@@ -101,6 +151,7 @@ export type Config = {
   endpoints: Record<string, string>
   polishPrompt: string
   contextLine: boolean
+  inboxDir: string
 }
 
 export type ConfigPayload = {
@@ -109,6 +160,7 @@ export type ConfigPayload = {
   keys: Record<string, { present: boolean; hint: string }>
   usage: UsageSummary
   modes: Array<{ id: ModeId; label: string; instruction: string }>
+  inbox: { dir: string }
 }
 
 export type Fit = 'ok' | 'near' | 'over' | 'none'

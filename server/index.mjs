@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 
 import { PROVIDERS, chat, getProvider, listModels, publicProvider } from './providers.mjs'
+import { ensureInbox, listInbox, readInboxFile, resolveInbox } from './inbox.mjs'
 import { estimateCost } from './pricing.mjs'
 import { buildPrompt, getMode, modeList, sanitiseOutput } from './polish.mjs'
 import {
@@ -92,7 +93,8 @@ function configPayload() {
     providers: PROVIDERS.map(publicProvider),
     keys: keyHints(),
     usage: usageSummary(),
-    modes: modeList()
+    modes: modeList(),
+    inbox: { dir: resolveInbox(config.inboxDir) }
   }
 }
 
@@ -232,6 +234,16 @@ async function routes(req, res, url) {
     return json(res, 200, usageSummary())
   }
 
+  if (pathname === '/api/files' && method === 'GET') {
+    const dir = resolveInbox(getConfig().inboxDir)
+    return json(res, 200, listInbox(dir))
+  }
+
+  if (pathname === '/api/files/open' && method === 'GET') {
+    const dir = resolveInbox(getConfig().inboxDir)
+    return json(res, 200, readInboxFile(dir, url.searchParams.get('id') ?? ''))
+  }
+
   const keyMatch = pathname.match(/^\/api\/keys\/([a-z0-9-]+)$/)
   if (keyMatch) {
     const provider = getProvider(keyMatch[1])
@@ -330,10 +342,14 @@ const server = createServer((req, res) => {
 })
 
 server.listen(PORT, HOST, () => {
-  const modeText = getMode(getConfig().mode).label
+  const config = getConfig()
+  const modeText = getMode(config.mode).label
+  const inbox = resolveInbox(config.inboxDir)
+  const created = ensureInbox(inbox)
   console.log(`String Theory ${VERSION}`)
   console.log(`  http://${HOST}:${PORT}`)
   console.log(`  data ${DATA_DIR}`)
+  console.log(`  inbox ${inbox}${created ? ' (created)' : ''}`)
   console.log(`  ${PROVIDERS.length} providers, default pass ${modeText}`)
 })
 

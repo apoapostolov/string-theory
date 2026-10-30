@@ -22,7 +22,7 @@ To launch it without a console window, run `start-hidden.vbs`. It starts the ser
 
 ## Use it
 
-1. Drop a `.json` export on the window, or use **Open export**. **Load the sample file** shows the tool with illustrative Foundry module strings.
+1. Open the **Sources** picker next to the wordmark. It lists every export in the inbox folder, plus anything opened from disk. Pick one; the sample is available from the empty state if the inbox is empty.
 2. Read the source on the left. Hovering it shows the full location line, the pixel budget and the font the measurement uses.
 3. Type the rewrite on the right. The **chars** and **PIL** counters under the input compare the source value with the current one:
    - green, comfortably inside the budget
@@ -34,7 +34,31 @@ To launch it without a console window, run `start-hidden.vbs`. It starts the ser
 4. **Polish** sends one string to the connected AI provider for a grammar and style pass. The caret beside it runs Grammar, Style or Fit instead of the default pass. `Ctrl+Enter` inside an input does the same, `Esc` reverts that row.
 5. **Export JSON** downloads `<app>.rewritten.json` with the current text, the previous text and a `changed` flag per string. **Copy JSON** puts the same payload on the clipboard.
 
-Filters, search, `Next issue` and the status bar exist to get you to the two strings that will wrap, not to browse. The working set is saved in the browser, so a reload keeps your rewrites.
+Filters, search, `Next issue` and the status bar exist to get you to the two strings that will wrap, not to browse.
+
+## Several projects at once
+
+The picker next to the wordmark is the source list. Every `.json` export in `inbox/` appears there with its app name, string count, import notes and how far you have got with it.
+
+```
+inbox/
+  session-transcripts.strings.json
+  hermes-todo/hermes-todo.strings.json
+  casino-simulator.strings.json
+```
+
+Other projects and agents drop files there; **Rescan** picks up new ones without a restart. Subfolders group related files, up to three levels deep, and each row shows the folder it came from.
+
+![The Sources picker with three exports, two in progress](docs/screenshot-sources.png)
+
+Three exports in the inbox. Two have working sets, so they carry a bar and a percentage; the third shows `not open` and its size. The footer totals every open file.
+
+Switching sources keeps each working set: rows, edits and progress are stored per file in the browser, so a project parked at 40% is still at 40% after you work on something else or reload. The picker shows `19% 3/16` for a file with three rewrites, and the footer totals every open file.
+
+Files opened with **Open file** or dropped on the window join the list too, under their own heading. A working set whose file has since been deleted stays visible as "gone from the inbox", because the rewrites are still yours until you discard them.
+
+Progress is computed from the rewrites in that file: a row counts when its text differs from the source. Nothing is written back to the inbox; the export is a separate download.
+
 
 ## Export format
 
@@ -82,7 +106,9 @@ The prompt sends the string, its id, the location line, the measured width and a
 
 ## Data and privacy
 
-Everything lives under `data/` and is gitignored: `config.json`, `keys.enc.json`, `master.key`, `usage.json`, `server.log`. Delete the folder to reset. The working set lives in the browser's local storage under `string-theory.workspace.v1`.
+Everything lives under `data/` and is gitignored: `config.json`, `keys.enc.json`, `master.key`, `usage.json`, `server.log`. Delete the folder to reset. Working sets live in the browser's local storage under `string-theory.library.v2`, one record per source.
+
+`inbox/` holds the exports you work on. It is gitignored apart from its README, and the tool never writes to it: the rewritten file is a download, not an edit in place.
 
 The server has no authentication because it only listens on loopback. Do not expose port 4317 to a network.
 

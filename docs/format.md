@@ -21,6 +21,12 @@ Three guarantees the tool relies on:
 2. **Budgets are absolute pixels, not relative to the current text.** `maxPx` is what the layout gives the string.
 3. **One font per file.** Every pixel figure in that file means the same thing.
 
+### Where files are picked up
+
+Drop the file in `inbox/` at the root of the String Theory checkout, or in a subfolder named after the project. The **Sources** picker lists every `.json` there, with the app name, the string count and any import notes, so several applications can be in progress at once without renaming anything. The folder is configurable in Settings, and each open file keeps its own working set and progress.
+
+The inbox is input only. The tool never writes to it: a finished file leaves as a download, and the app that owns the strings merges it back.
+
 ## Versioning
 
 | Change | Version |
@@ -246,6 +252,6 @@ Where the values come from:
 A change to this contract touches four homes, and they must agree:
 
 1. `docs/format.md` and `docs/string-theory.schema.json`: canonical.
-2. `src/lib/format.ts`: the loader that implements the repairs above.
+2. `shared/parse-export.mjs`: the loader that implements the repairs above, and the only implementation (the client and the server's inbox listing both use it).
 3. `src/components/FormatSpec.tsx`: the in-app reference a user reads.
 4. `AGENTS.md` for the repo and the Hermes skill `string-theory-handoff`, which other agents follow when Apo says he dislikes a set of strings.

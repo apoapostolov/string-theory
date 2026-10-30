@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import sampleRaw from '../samples/demo.strings.json?raw'
-import type { ConfigPayload, Fit, FontMetrics, ImportIssue, ModeId, Row, UsageSummary } from './types'
+import type {
+  ConfigPayload,
+  DocumentProgress,
+  DocumentRecord,
+  FileMeta,
+  Fit,
+  FontMetrics,
+  ImportIssue,
+  InboxEntry,
+  InboxListing,
+  ModeId,
+  ParsedFile,
+  Row,
+  UsageSummary
+} from './types'
 import { api } from './lib/api'
 import { DEFAULT_FONT, parseExport } from './lib/format'
 import { charFit, fitOf, measurePx, worstFit } from './lib/metrics'
@@ -11,18 +25,16 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { EmptyState } from './components/EmptyState'
 import { FormatSpec } from './components/FormatSpec'
 import { ImportReport } from './components/ImportReport'
+import { SourcePicker, type SourceSummary } from './components/SourcePicker'
 import { Toasts, type Toast } from './components/Toasts'
 import { Button } from './components/Button'
 
-const STORAGE_KEY = 'string-theory.workspace.v1'
+const LIBRARY_KEY = 'string-theory.library.v2'
+const LEGACY_KEY = 'string-theory.workspace.v1'
 
-type FileMeta = {
-  name: string
-  app: string
-  context: string
-  font: FontMetrics
-  version: string
-  issues: ImportIssue[]
+type Library = {
+  activeId: string | null
+  docs: Record<string, DocumentRecord>
 }
 
 function slug(value: string): string {
@@ -34,11 +46,49 @@ function slug(value: string): string {
   )
 }
 
+function progressOf(rows: Row[]): DocumentProgress {
+  const total = rows.length
+  const changed = rows.filter((row) => row.text !== row.source).length
+  return { total, changed, percent: total ? Math.round((changed / total) * 100) : 0 }
+}
+
+function toRows(parsed: ParsedFile): Row[] {
+  return parsed.rows.map((row) => ({ ...row, text: row.source, ai: false, busy: false, error: null }))
+}
+
+function metaOf(parsed: ParsedFile): FileMeta {
+  return {
+    name: parsed.name,
+    app: parsed.app,
+    context: parsed.context,
+    font: parsed.font,
+    version: parsed.version,
+    issues: parsed.issues as ImportIssue[]
+  }
+}
+
+function documentFrom(parsed: ParsedFile, id: string, origin: DocumentRecord['origin'], path: string): DocumentRecord {
+  return {
+    id,
+    label: parsed.app,
+    fileName: parsed.name,
+    origin,
+    path,
+    meta: metaOf(parsed),
+    rows: toRows(parsed),
+    savedAt: new Date().toISOString()
+  }
+}
+
 export default function App() {
   const [payload, setPayload] = useState<ConfigPayload | null>(null)
   const [apiDown, setApiDown] = useState(false)
+  const [library, setLibrary] = useState<Library>({ activeId: null, docs: {} })
   const [meta, setMeta] = useState<FileMeta | null>(null)
   const [rows, setRows] = useState<Row[]>([])
+  const [inbox, setInbox] = useState<InboxListing | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<FilterId>('all')
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -50,9 +100,13 @@ export default function App() {
   const toastSeq = useRef(1)
   const rowsRef = useRef<Row[]>(rows)
   const metaRef = useRef<FileMeta | null>(meta)
+  const libraryRef = useRef<Library>(library)
+  const activeIdRef = useRef<string | null>(library.activeId)
   const jumpCursor = useRef(0)
   rowsRef.current = rows
   metaRef.current = meta
+  libraryRef.current = library
+  activeIdRef.current = library.activeId
 
   const pushToast = useCallback((kind: 'ok' | 'error', message: string) => {
     const id = toastSeq.current++
@@ -62,6 +116,26 @@ export default function App() {
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id))
   }, [])
+
+  const scanInbox = useCallback(
+    async (quiet = false) => {
+      setScanning(true)
+      try {
+        const listing = await api.inbox()
+        setInbox(listing)
+        if (!quiet) {
+          pushToast('ok', listing.files.length ? `${listing.files.length} exports in the inbox` : 'Inbox is empty')
+        }
+        return listing
+      } catch (error) {
+        if (!quiet) pushToast('error', `Inbox scan failed: ${(error as Error).message}`)
+        return null
+      } finally {
+        setScanning(false)
+      }
+    },
+    [pushToast]
+  )
 
   // ------------------------------------------------------------ boot
 
@@ -76,108 +150,241 @@ export default function App() {
         setApiDown(true)
         pushToast('error', `Local API unreachable: ${error.message}`)
       })
-  }, [pushToast])
+    void scanInbox(true)
+  }, [pushToast, scanInbox])
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (!raw) return
-      const saved = JSON.parse(raw) as { meta?: FileMeta; rows?: Row[] }
+      const raw = localStorage.getItem(LIBRARY_KEY)
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<Library>
+        const docs = saved.docs ?? {}
+        const valid = Object.fromEntries(
+          Object.entries(docs).filter(([, doc]) => doc && Array.isArray(doc.rows) && doc.meta && doc.id)
+        ) as Record<string, DocumentRecord>
+        const ids = Object.keys(valid)
+        if (!ids.length) return
+        const activeId = saved.activeId && valid[saved.activeId] ? saved.activeId : ids[0]
+        setLibrary({ activeId, docs: valid })
+        setMeta(valid[activeId].meta)
+        setRows(valid[activeId].rows.map((row) => ({ ...row, busy: false, error: null })))
+        pushToast('ok', `Restored ${ids.length} working set${ids.length === 1 ? '' : 's'}`)
+        return
+      }
+      const legacy = localStorage.getItem(LEGACY_KEY)
+      if (!legacy) return
+      const saved = JSON.parse(legacy) as { meta?: FileMeta; rows?: Row[] }
       if (!saved.meta || !Array.isArray(saved.rows) || !saved.rows.length) return
-      setMeta({
-        ...saved.meta,
-        version: saved.meta.version ?? 'string-theory/1',
-        issues: Array.isArray(saved.meta.issues) ? saved.meta.issues : []
-      })
-      setRows(saved.rows.map((row) => ({ ...row, busy: false, error: null })))
-      pushToast('ok', `Restored ${saved.meta.app} · ${saved.rows.length} strings`)
+      const doc: DocumentRecord = {
+        id: `file:${saved.meta.name}`,
+        label: saved.meta.app,
+        fileName: saved.meta.name,
+        origin: 'file',
+        path: '',
+        meta: {
+          ...saved.meta,
+          version: saved.meta.version ?? 'string-theory/1',
+          issues: Array.isArray(saved.meta.issues) ? saved.meta.issues : []
+        },
+        rows: saved.rows.map((row) => ({ ...row, busy: false, error: null })),
+        savedAt: new Date().toISOString()
+      }
+      setLibrary({ activeId: doc.id, docs: { [doc.id]: doc } })
+      setMeta(doc.meta)
+      setRows(doc.rows)
+      localStorage.removeItem(LEGACY_KEY)
+      pushToast('ok', `Restored ${doc.label}`)
     } catch {
-      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(LIBRARY_KEY)
+      localStorage.removeItem(LEGACY_KEY)
     }
   }, [pushToast])
 
+  // Persist every working set, not just the visible one.
   useEffect(() => {
-    if (!meta || !rows.length) return
     const timer = window.setTimeout(() => {
+      const current = libraryRef.current
+      const docs = { ...current.docs }
+      const id = activeIdRef.current
+      const liveMeta = metaRef.current
+      if (id && liveMeta) {
+        const existing = docs[id]
+        docs[id] = {
+          id,
+          label: liveMeta.app,
+          fileName: liveMeta.name,
+          origin: existing?.origin ?? 'file',
+          path: existing?.path ?? '',
+          meta: liveMeta,
+          rows: rowsRef.current,
+          savedAt: new Date().toISOString()
+        }
+      }
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ meta, rows }))
+        localStorage.setItem(LIBRARY_KEY, JSON.stringify({ activeId: current.activeId, docs }))
       } catch {
-        /* storage full or blocked; the export still works */
+        /* storage full or blocked; export still works */
       }
     }, 600)
     return () => window.clearTimeout(timer)
-  }, [meta, rows])
+  }, [library, rows, meta])
 
-  // ------------------------------------------------------------ file
+  // ------------------------------------------------------------ documents
 
-  const applyFile = useCallback(
-    (source: unknown, fileName: string) => {
-      const parsed = parseExport(source, fileName)
-      if (!parsed.rows.length) {
-        pushToast('error', 'No strings found in that file.')
-        return
-      }
-      setMeta({
-        name: parsed.name,
-        app: parsed.app,
-        context: parsed.context,
-        font: parsed.font,
-        version: parsed.version,
-        issues: parsed.issues
-      })
-      setRows(
-        parsed.rows.map((row) => ({
-          ...row,
-          text: row.source,
-          ai: false,
-          busy: false,
-          error: null
-        }))
-      )
+  const flushActive = useCallback(() => {
+    const id = activeIdRef.current
+    const liveMeta = metaRef.current
+    if (!id || !liveMeta) return libraryRef.current.docs
+    const docs = { ...libraryRef.current.docs }
+    const existing = docs[id]
+    docs[id] = {
+      id,
+      label: liveMeta.app,
+      fileName: liveMeta.name,
+      origin: existing?.origin ?? 'file',
+      path: existing?.path ?? '',
+      meta: liveMeta,
+      rows: rowsRef.current,
+      savedAt: new Date().toISOString()
+    }
+    return docs
+  }, [])
+
+  const activate = useCallback((id: string) => {
+    const docs = flushActive()
+    const target = docs[id]
+    if (!target) return
+    setLibrary({ activeId: id, docs })
+    setMeta(target.meta)
+    setRows(target.rows.map((row) => ({ ...row, busy: false, error: null })))
+    setFilter('all')
+    setQuery('')
+    setReportOpen(true)
+    jumpCursor.current = 0
+  }, [flushActive])
+
+  const adoptDoc = useCallback(
+    (doc: DocumentRecord) => {
+      const docs = { ...flushActive(), [doc.id]: doc }
+      setLibrary({ activeId: doc.id, docs })
+      setMeta(doc.meta)
+      setRows(doc.rows)
       setFilter('all')
       setQuery('')
       setReportOpen(true)
       jumpCursor.current = 0
-      pushToast('ok', `${parsed.rows.length} strings loaded from ${parsed.name}`)
-      const errors = parsed.issues.filter((issue) => issue.level === 'error')
-      if (errors.length) pushToast('error', errors[0].message)
-      else if (parsed.issues.length) {
-        pushToast('ok', `${parsed.issues.length} import note${parsed.issues.length === 1 ? '' : 's'}, see the strip under the filters`)
+    },
+    [flushActive]
+  )
+
+  const removeDoc = useCallback(
+    (id: string) => {
+      const docs = { ...libraryRef.current.docs }
+      delete docs[id]
+      const remaining = Object.keys(docs)
+      if (activeIdRef.current === id) {
+        const next = remaining[0]
+        if (next) {
+          const doc = docs[next]
+          setLibrary({ activeId: next, docs })
+          setMeta(doc.meta)
+          setRows(doc.rows.map((row) => ({ ...row, busy: false, error: null })))
+        } else {
+          setLibrary({ activeId: null, docs })
+          setMeta(null)
+          setRows([])
+        }
+      } else {
+        setLibrary({ activeId: libraryRef.current.activeId, docs })
       }
+      pushToast('ok', 'Removed from this session. The file is untouched.')
     },
     [pushToast]
   )
 
-  const openFile = useCallback(
+  // ------------------------------------------------------------ loading
+
+  const loadInboxFile = useCallback(
+    async (entry: InboxEntry) => {
+      const id = `inbox:${entry.id}`
+      const existing = libraryRef.current.docs[id]
+      if (existing) {
+        activate(id)
+        return
+      }
+      setBusyId(entry.id)
+      try {
+        const file = await api.openInboxFile(entry.id)
+        const parsed = parseExport(file.json, file.name)
+        if (!parsed.rows.length) {
+          pushToast('error', `${file.name} has no strings to show.`)
+          return
+        }
+        adoptDoc(documentFrom(parsed, id, 'inbox', entry.id))
+        pushToast('ok', `${parsed.rows.length} strings from ${parsed.app}`)
+      } catch (error) {
+        pushToast('error', (error as Error).message)
+      } finally {
+        setBusyId(null)
+      }
+    },
+    [activate, adoptDoc, pushToast]
+  )
+
+  const loadFromFile = useCallback(
     async (file: File) => {
       try {
         const text = await file.text()
-        applyFile(JSON.parse(text), file.name)
+        const parsed = parseExport(JSON.parse(text), file.name)
+        if (!parsed.rows.length) {
+          pushToast('error', `No strings found in ${file.name}.`)
+          return
+        }
+        const id = `file:${file.name}:${file.size}:${file.lastModified}`
+        const existing = libraryRef.current.docs[id]
+        if (existing) {
+          activate(id)
+          pushToast('ok', `${file.name} is already open`)
+          return
+        }
+        adoptDoc(documentFrom(parsed, id, 'file', ''))
+        pushToast('ok', `${parsed.rows.length} strings from ${parsed.app}`)
       } catch (error) {
         pushToast('error', `Could not read ${file.name}: ${(error as Error).message}`)
       }
     },
-    [applyFile, pushToast]
+    [activate, adoptDoc, pushToast]
   )
 
   const loadSample = useCallback(() => {
+    const id = 'sample:demo'
+    const existing = libraryRef.current.docs[id]
+    if (existing) {
+      activate(id)
+      return
+    }
     try {
-      applyFile(JSON.parse(sampleRaw), 'demo.strings.json')
+      const parsed = parseExport(JSON.parse(sampleRaw), 'demo.strings.json')
+      adoptDoc(documentFrom(parsed, id, 'file', ''))
+      pushToast('ok', `${parsed.rows.length} strings in the sample`)
     } catch (error) {
       pushToast('error', (error as Error).message)
     }
-  }, [applyFile, pushToast])
+  }, [activate, adoptDoc, pushToast])
 
   const pickFile = useCallback(() => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'application/json,.json'
+    input.multiple = true
     input.onchange = () => {
-      const file = input.files?.[0]
-      if (file) void openFile(file)
+      const files = Array.from(input.files ?? [])
+      files.forEach((file, index) => {
+        window.setTimeout(() => void loadFromFile(file), index * 120)
+      })
     }
     input.click()
-  }, [openFile])
+  }, [loadFromFile])
 
   // ------------------------------------------------------------ editing
 
@@ -192,7 +399,7 @@ export default function App() {
   }, [])
 
   const onRevertAll = useCallback(() => {
-    if (!window.confirm('Revert every rewrite back to the source string?')) return
+    if (!window.confirm('Revert every rewrite in this file back to the source string?')) return
     setRows((current) => current.map((row) => ({ ...row, text: row.source, ai: false, error: null })))
     pushToast('ok', 'All strings reverted')
   }, [pushToast])
@@ -289,6 +496,30 @@ export default function App() {
     })
   }, [decorated, filter, query])
 
+  const docSummaries = useMemo<SourceSummary[]>(() => {
+    const list = Object.values(library.docs).map((doc) => ({
+      id: doc.id,
+      label: doc.label,
+      fileName: doc.fileName,
+      origin: doc.origin,
+      progress: progressOf(doc.rows),
+      notes: doc.meta.issues.length,
+      savedAt: doc.savedAt
+    }))
+    const activeId = library.activeId
+    const index = list.findIndex((doc) => doc.id === activeId)
+    if (index >= 0 && rows.length) {
+      list[index] = { ...list[index], progress: progressOf(rows), savedAt: new Date().toISOString() }
+    }
+    return list.sort((a, b) => {
+      if (a.id === activeId) return -1
+      if (b.id === activeId) return 1
+      return Date.parse(b.savedAt) - Date.parse(a.savedAt)
+    })
+  }, [library.docs, library.activeId, rows])
+
+  const currentSource = docSummaries.find((doc) => doc.id === library.activeId) ?? null
+
   // ------------------------------------------------------------ export
 
   const exportObject = useCallback(() => {
@@ -358,20 +589,18 @@ export default function App() {
       try {
         const next = await api.patchConfig(patch)
         setPayload(next)
+        if (patch.inboxDir !== undefined) void scanInbox(true)
       } catch (error) {
         pushToast('error', (error as Error).message)
       }
     },
-    [pushToast]
+    [pushToast, scanInbox]
   )
 
-  const setKey = useCallback(
-    async (providerId: string, key: string) => {
-      const next = await api.setKey(providerId, key)
-      setPayload(next)
-    },
-    []
-  )
+  const setKey = useCallback(async (providerId: string, key: string) => {
+    const next = await api.setKey(providerId, key)
+    setPayload(next)
+  }, [])
 
   const clearKey = useCallback(async (providerId: string) => {
     const next = await api.clearKey(providerId)
@@ -400,13 +629,27 @@ export default function App() {
       onDrop={(event) => {
         event.preventDefault()
         setDragging(false)
-        const file = event.dataTransfer.files?.[0]
-        if (file) void openFile(file)
+        const files = Array.from(event.dataTransfer.files ?? [])
+        files.forEach((file, index) => {
+          window.setTimeout(() => void loadFromFile(file), index * 120)
+        })
       }}
     >
       <TopBar
-        appName={meta?.app ?? ''}
-        fileName={meta?.name ?? ''}
+        source={
+          <SourcePicker
+            current={currentSource}
+            docs={docSummaries}
+            inbox={inbox}
+            scanning={scanning}
+            busyId={busyId}
+            onSelectDoc={activate}
+            onOpenInbox={(entry) => void loadInboxFile(entry)}
+            onRemoveDoc={removeDoc}
+            onRescan={() => void scanInbox()}
+            onOpenFile={pickFile}
+          />
+        }
         count={rows.length}
         font={meta?.font ?? null}
         query={query}
@@ -414,7 +657,6 @@ export default function App() {
         provider={provider}
         providerReady={providerReady}
         usage={usage}
-        onOpenFile={openFile}
         onSettings={() => setSettingsOpen(true)}
         onSpec={() => setSpecOpen(true)}
       />
@@ -506,7 +748,7 @@ export default function App() {
       {dragging ? (
         <div className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center bg-ink-950/80">
           <div className="rounded-[14px] border border-dashed border-line-strong px-8 py-6 text-[13px] text-fg">
-            Drop the export to load it
+            Drop one export, or several to compare projects
           </div>
         </div>
       ) : null}

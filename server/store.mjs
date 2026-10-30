@@ -23,7 +23,8 @@ const CONFIG_DEFAULTS = {
   monthlyUsd: 12,
   endpoints: {},
   polishPrompt: '',
-  contextLine: true
+  contextLine: true,
+  inboxDir: ''
 }
 
 function ensureData() {

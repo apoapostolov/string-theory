@@ -3,3 +3,8 @@ dist/
 data/
 *.log
 .DS_Store
+
+# Inbox: exports are inputs written by other projects, never committed.
+# Keep the folder and its README so a fresh clone has somewhere to drop files.
+inbox/*
+!inbox/README.md
