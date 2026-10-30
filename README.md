@@ -19,7 +19,7 @@ String Theory is a local tool for rewriting an application's interface strings a
 
 It runs on your machine, listens on `127.0.0.1`, keeps working sets in the browser, and uploads nothing except the AI calls you ask for.
 
-![String Theory editing a Foundry module export](docs/screenshot.png)
+![String Theory editing a Foundry module export](docs/app-list.png)
 
 ## The problem it solves
 
@@ -77,7 +77,7 @@ Providers are the usual set: OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRou
 
 | The wrap, measured | One file, several sources |
 | --- | --- |
-| ![Close to limit filter showing an orphan last line](docs/screenshot-wrap.png) | ![Source picker listing inbox files with progress](docs/screenshot-sources.png) |
+| ![Close to limit filter showing an orphan last line](docs/app-wrap.png) | ![Source picker listing inbox files with progress](docs/screenshot-sources.png) |
 
 ## Accessibility
 

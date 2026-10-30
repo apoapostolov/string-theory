@@ -53,7 +53,7 @@ There is no test framework. `scripts/smoke.mjs` is the integration test: it star
 | `server/pricing.mjs` | USD per million tokens, ported from Lingarr Next. |
 | `docs/format.md` | Canonical format, the wrap law, and the exporter guidance. |
 | `samples/demo.strings.json` | The sample the empty state loads. Keep one row in each verdict: one spill, one orphan, clean two-line wraps. |
-| `docs/banner.png`, `docs/icon.png`, `docs/icon.svg`, `docs/screenshot*.png` | README assets. Regenerate from `brand/` at the sizes noted there, never by hand. |
+| `docs/banner.png`, `docs/icon.png`, `docs/icon.svg`, `docs/app-*.png`, `docs/screenshot*.png` | README assets. Regenerate from `brand/` at the sizes noted there, never by hand. |
 | `brand/banner.html`, `brand/icon.html` | The sources the assets are rendered from: 1600×600 banner, 512×512 icon. |
 | `profiles/README.md` | Explains where style profiles go; the generated profiles themselves are gitignored. |
 | `LICENSE` | MIT. |
