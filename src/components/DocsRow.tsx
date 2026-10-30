@@ -88,17 +88,6 @@ function DocsShell({
       aria-labelledby={`row-label-${row.key}`}
       className={`st-row border-l-[3px] border-l-transparent ${changed ? 'st-row-docs-changed' : ''}`}
     >
-      {changed ? (
-        <button
-          type="button"
-          aria-label="Revert to source"
-          title="Revert to source (Esc)"
-          onClick={() => onRevert(row.key)}
-          className="st-revert absolute top-2 left-1 flex h-6 w-6 items-center justify-center rounded-md text-fg-faint transition-colors hover:bg-ink-800 hover:text-fg"
-        >
-          <ArrowCounterClockwise size={12} />
-        </button>
-      ) : null}
       <div className="flex items-start gap-2.5 px-3 pt-2">
         <StateGlyph state={row.state} onCycle={() => onCycleState(row.key)} onReset={() => onResetState(row.key)} />
 
@@ -161,6 +150,18 @@ function DocsShell({
           <span className="line-clamp-2 block text-[12px] leading-relaxed text-fg-faint">{row.source}</span>
         </HoverInfo>
 
+        <div className="relative pl-7">
+          {changed ? (
+            <button
+              type="button"
+              aria-label="Revert to source"
+              title="Revert to source (Esc)"
+              onClick={() => onRevert(row.key)}
+              className="st-revert absolute top-1 left-0 flex h-6 w-6 items-center justify-center rounded-md text-fg-faint transition-colors hover:bg-ink-800 hover:text-fg"
+            >
+              <ArrowCounterClockwise size={12} />
+            </button>
+          ) : null}
         <textarea
           value={row.text}
           rows={rows}
@@ -180,6 +181,7 @@ function DocsShell({
           placeholder="Rewrite this paragraph in your own words"
           className="st-input block w-full resize-y rounded-lg border border-line-input bg-ink-850/80 px-3 py-2 text-[12.5px] leading-relaxed text-fg outline-none transition-colors placeholder:text-fg-faint/70 focus:border-fg-dim focus:bg-ink-850"
         />
+        </div>
 
         <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10.5px] text-fg-faint">
           <span className="tabular-nums text-fg-dim">{chars} ch</span>

@@ -150,7 +150,8 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 
 ## The revert control
 
-- Undo lives in a 28px gutter down the left of every row, outside the row's content, and appears only when `text !== source`. The gutter is reserved at all times so a row never jumps sideways the moment it is edited.
+- Undo belongs to the input, not to the row: it hangs just left of the textarea it reverts, vertically centred on the first line, and appears only when `text !== source`. Never park it at the row's left edge, where it reads as part of the state glyph.
+- On the two-column app layout the control sits in the 28px column gap (`lg:-left-6`) so the input does not move when it appears. Below `lg` the right column reserves a 20px rail (`pl-5 lg:pl-0`) and the control fills it. On prose rows the textarea gets a 28px rail (`pl-7`) for the same reason. Reserve the space always; never shift the input when a row becomes dirty.
 - `Esc` in the textarea does the same thing, and the control is a plain button with `aria-label="Revert to source"` so it is reachable without a mouse.
 
 ## Model catalogues

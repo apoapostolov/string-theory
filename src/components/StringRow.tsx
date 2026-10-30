@@ -156,17 +156,6 @@ function RowShell({
       aria-describedby={`row-verdict-${row.key}`}
       className={`st-row ${BORDER[fit]}`}
     >
-      {changed ? (
-        <button
-          type="button"
-          aria-label="Revert to source"
-          title="Revert to source (Esc)"
-          onClick={() => onRevert(row.key)}
-          className="st-revert absolute top-2 left-1 flex h-6 w-6 items-center justify-center rounded-md text-fg-faint transition-colors hover:bg-ink-800 hover:text-fg"
-        >
-          <ArrowCounterClockwise size={12} />
-        </button>
-      ) : null}
       <div className="grid grid-cols-1 gap-x-7 gap-y-2 pr-4 pb-3 pl-3 pt-2 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
         {/* Left: the glyph, the identity line and the source. Nothing above it. */}
         <div className="flex min-w-0 items-start gap-2.5">
@@ -231,7 +220,21 @@ function RowShell({
         </div>
 
         {/* Right: the input sits at the top of the row, meters hang under it. */}
-        <div className="min-w-0">
+        <div className="relative min-w-0 pl-5 lg:pl-0">
+          {/* Spills left out of the input, not from the row's other furniture: the
+              rail is reserved at narrow widths, and at wide widths the control sits
+              in the column gap so the input never moves. */}
+          {changed ? (
+            <button
+              type="button"
+              aria-label="Revert to source"
+              title="Revert to source (Esc)"
+              onClick={() => onRevert(row.key)}
+              className="st-revert absolute top-[5px] left-0 flex h-6 w-5 items-center justify-center rounded-md text-fg-faint transition-colors hover:bg-ink-800 hover:text-fg lg:-left-6 lg:w-6"
+            >
+              <ArrowCounterClockwise size={12} />
+            </button>
+          ) : null}
           <div className="flex items-stretch gap-1.5">
             <textarea
               value={row.text}
