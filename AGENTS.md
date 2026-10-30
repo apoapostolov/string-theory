@@ -111,8 +111,15 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 
 - A provider gets a sign-in only when a flow really exists, and the shape is recorded in `server/oauth.mjs`: `device` posts a form, `codex` posts JSON and hands back an authorization code to exchange once, `authorize` is PKCE in the browser with the code pasted back.
 - A ChatGPT session authenticates against `https://chatgpt.com/backend-api/codex`, never `api.openai.com`. The account id rides in the token claims and becomes the `chatgpt-account-id` header; it is optional, so a missing claim never fails a request.
+- A Codex session must not travel with the provider's platform endpoint. `resolveCredentials` returns the operator's override or nothing for that kind, and `chat()` falls back to the Codex base; sending `api.openai.com` with a session fails with a scope error that looks like a bad token.
 - A session is a bearer token and an API key is not: `chat()` takes `auth`, and the Anthropic branch sends `anthropic-beta: oauth-2025-04-20` only for a session.
 - `npm run smoke:oauth` must pass before a sign-in change ships. It stubs the endpoints, so it proves the request shapes and the refresh path without an account; it cannot prove a provider still accepts them.
+
+## Settings layout
+
+- Settings is two tabs, Provider and Workspace, as a real `tablist` with arrow keys. Provider holds the provider grid and that provider's credentials. Workspace holds the default pass, fit bands and budgets, the extra instruction, the sources inbox, style profiles, the measurement font and usage. A new control belongs in Workspace unless it is about connecting a provider.
+- The key-only options (key field, endpoint override, fetch models) render only while the key side of a provider is selected. The model choice stays on both sides, because it applies to either credential.
+- `authModeFor()` in `src/lib/auth.ts` is the only place that decides key or sign-in. The credentials block and the options beside it read the same function, so they cannot disagree about which mode is active.
 
 ## Design and access rules
 

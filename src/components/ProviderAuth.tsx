@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { CheckCircle, Copy, Key, SignIn, WarningCircle, X } from '@phosphor-icons/react'
 import type { ConfigPayload, ProviderInfo } from '../types'
 import { api } from '../lib/api'
+import { authModeFor } from '../lib/auth'
 import { Button } from './Button'
 
 type Props = {
@@ -28,8 +29,7 @@ function relative(iso: string): string {
 export function ProviderAuth({ provider, payload, onPatch, onToast }: Props) {
   const oauthConfig = payload?.oauth.providers.find((entry) => entry.id === provider.id) ?? null
   const session = payload?.oauth.sessions?.[provider.id] ?? null
-  const explicit = payload?.config.authModes?.[provider.id]
-  const mode: 'key' | 'oauth' = explicit ?? (session?.present ? 'oauth' : 'key')
+  const mode = authModeFor(provider.id, payload) ?? 'key'
 
   const [flow, setFlow] = useState<{ flowId: string; userCode: string; uri: string; interval: number } | null>(null)
   const [pendingAuth, setPendingAuth] = useState<{ flowId: string; url: string } | null>(null)

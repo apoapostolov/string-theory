@@ -13,6 +13,7 @@ import type { ConfigPayload, FontMetrics, ModeId, ProviderInfo } from '../types'
 import { api } from '../lib/api'
 import { fontInstalled } from '../lib/metrics'
 import { ProviderAuth } from './ProviderAuth'
+import { authModeFor } from '../lib/auth'
 import { Button } from './Button'
 
 type Props = {
@@ -125,6 +126,7 @@ export function SettingsPanel({
   const [models, setModels] = useState<string[]>([])
   const [modelsNote, setModelsNote] = useState('')
   const [fetching, setFetching] = useState(false)
+  const [tab, setTab] = useState<'provider' | 'workspace'>('provider')
 
   useEffect(() => {
     setModels([])
@@ -188,6 +190,8 @@ export function SettingsPanel({
   }
 
   const usage = payload?.usage
+  const authMode = authModeFor(active?.id, payload)
+  const keyOptions = authMode !== 'oauth'
   const options = models.length ? models : (active?.models ?? [])
   const modelValue = config?.model ?? ''
   const titleId = useId()
@@ -223,8 +227,45 @@ export function SettingsPanel({
           </Button>
         </div>
 
+        <div role="tablist" aria-label="Settings sections" className="flex shrink-0 items-stretch gap-1 border-b border-line px-4">
+          {([
+            { id: 'provider' as const, label: 'Provider' },
+            { id: 'workspace' as const, label: 'Workspace' }
+          ]).map((entry) => {
+            const selected = tab === entry.id
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`settings-${entry.id}`}
+                id={`settings-tab-${entry.id}`}
+                onClick={() => setTab(entry.id)}
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+                    event.preventDefault()
+                    setTab(entry.id === 'provider' ? 'workspace' : 'provider')
+                    const next = document.getElementById(`settings-tab-${entry.id === 'provider' ? 'workspace' : 'provider'}`)
+                    next?.focus()
+                  }
+                }}
+                className={`-mb-px flex h-10 items-center border-b-2 px-3 text-[12px] transition-colors ${
+                  selected
+                    ? 'border-fg text-fg'
+                    : 'border-transparent text-fg-faint hover:text-fg-dim'
+                }`}
+              >
+                {entry.label}
+              </button>
+            )
+          })}
+        </div>
+
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <Section title="AI provider" hint="Keys and sign-in sessions live in an encrypted local file, never in the browser.">
+          {tab === 'provider' ? (
+            <div role="tabpanel" id="settings-provider" aria-labelledby="settings-tab-provider">
+              <Section title="AI provider" hint="Keys and sign-in sessions live in an encrypted local file, never in the browser.">
             <div className="grid grid-cols-2 gap-1.5">
               {providers.map((provider: ProviderInfo) => {
                 const connected = payload?.keys[provider.id]?.present
@@ -266,7 +307,7 @@ export function SettingsPanel({
               >
                 <div className="space-y-2.5">
                   <ProviderAuth provider={active} payload={payload} onPatch={onPatch} onToast={onToast} />
-                  {active.needsKey ? (
+                  {active.needsKey && keyOptions ? (
                     <div className="flex gap-1.5">
                       <div className="relative flex-1">
                         <Key size={12} className="absolute top-2.5 left-2.5 text-fg-faint" />
@@ -302,6 +343,8 @@ export function SettingsPanel({
                     </div>
                   ) : null}
 
+                  {keyOptions ? (
+                    <>
                   <Field label="Endpoint" hint="Override the default base URL when you use a proxy or a self-hosted gateway.">
                     <DraftInput
                       value={config?.endpoints[active.id] ?? active.endpoint}
@@ -320,6 +363,9 @@ export function SettingsPanel({
                       <span className="min-w-0 flex-1 text-[10.5px] leading-snug text-fg-faint">{modelsNote}</span>
                     ) : null}
                   </div>
+
+                    </>
+                  ) : null}
 
                   <Field label="Model" hint="Pick from the catalogue, or type any model id the provider accepts.">
                     <div className="space-y-2">
@@ -344,7 +390,11 @@ export function SettingsPanel({
                   </Field>
                 </div>
               </Section>
-
+            </>
+          ) : null}
+            </div>
+          ) : (
+            <div role="tabpanel" id="settings-workspace" aria-labelledby="settings-tab-workspace">
               <Section title="Default pass" hint="Used by the Polish button. The caret on any row runs a one-off pass instead.">
                 <div className="grid grid-cols-3 gap-1.5">
                   {PASSES.map((pass) => {
@@ -434,8 +484,6 @@ export function SettingsPanel({
                   Send the location line with each prompt
                 </label>
               </Section>
-            </>
-          ) : null}
 
           <Section
             title="Sources inbox"
@@ -593,6 +641,8 @@ export function SettingsPanel({
               <p className="text-[11.5px] text-fg-faint">Usage loads with the app.</p>
             )}
           </Section>
+            </div>
+          )}
 
           <div className="flex items-start gap-2 px-5 py-4 text-[10.5px] leading-relaxed text-fg-faint">
             <Plugs size={12} className="mt-0.5 shrink-0" />

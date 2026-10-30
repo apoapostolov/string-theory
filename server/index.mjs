@@ -149,7 +149,12 @@ async function resolveCredentials(bodyProvider) {
   // A signed-in session wins over an API key unless the operator pinned the key.
   if (oauth && mode !== 'key') {
     const token = await validAccessToken(provider.id)
-    if (token) return { provider, key: token, endpoint, model, auth: 'oauth' }
+    if (token) {
+      // A Codex session only works against the Codex base, so the provider's
+      // platform URL must not travel with it; an explicit override still does.
+      const wire = oauth.kind === 'codex' ? (config.endpoints?.[provider.id] ?? '') : endpoint
+      return { provider, key: token, endpoint: wire, model, auth: 'oauth' }
+    }
     if (mode === 'oauth') {
       // Never signed in reads differently from signed in and expired.
       const ever = oauthHints()[provider.id]?.present
@@ -223,7 +228,7 @@ async function handlePolish(body) {
   })
 
   const result = await chat(provider, {
-    endpoint: auth === 'oauth' && provider.id === 'openai' ? '' : endpoint,
+    endpoint,
     key,
     auth,
     accountId: auth === 'oauth' ? accountIdFromToken(key) : '',
@@ -233,8 +238,10 @@ async function handlePolish(body) {
     temperature: prompt.temperature,
     maxTokens: 600
   }).catch((error) => {
-    // A rejected OAuth token looks like any other 401; say which one it is.
+    // A rejected OAuth token looks like any other 401; say which one it is, and
+    // keep the provider's own words in the log so a bad wire can be diagnosed.
     if (auth === 'oauth' && (error.status === 401 || error.status === 403)) {
+      console.error(`[polish] ${provider.id} rejected the session: ${String(error.message).slice(0, 300)}`)
       throw Object.assign(
         new Error(`${provider.label} rejected the sign-in. Reconnect it in Settings, or switch to an API key.`),
         { status: 401, code: 'oauth-rejected' }

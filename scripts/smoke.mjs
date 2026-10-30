@@ -74,6 +74,7 @@ const configured = await call('/api/config', {
     model: 'gpt-4.1-mini',
     providerId: 'openai',
     endpoint: `http://127.0.0.1:${MOCK_PORT}/v1`,
+    authModes: { ...(savedConfig.authModes ?? {}), openai: 'key' },
     dailyUsd: 5,
     monthlyUsd: 50
   })
@@ -208,6 +209,7 @@ await call('/api/config', {
     model: savedConfig.model,
     providerId: 'openai',
     endpoint: '',
+    authModes: savedConfig.authModes ?? {},
     dailyUsd: savedConfig.dailyUsd,
     monthlyUsd: savedConfig.monthlyUsd
   })

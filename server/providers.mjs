@@ -269,7 +269,9 @@ export async function chat(provider, opts) {
   // A ChatGPT session is not a platform key: it is only accepted by the Codex
   // endpoint, and it wants the account id beside the bearer token.
   if (provider.id === 'openai' && auth === 'oauth') {
-    const codexBase = base || CODEX_BASE
+    // provider.endpoint points at the platform API, which does not accept this
+    // session; only an explicit override or the Codex base will do.
+    const codexBase = endpoint || CODEX_BASE
     const headers = {
       'content-type': 'application/json',
       accept: 'text/event-stream',
