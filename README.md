@@ -133,13 +133,17 @@ npm run serve:restart
 
 Prod serves `dist/` and the API from one process on 4317, with no Vite and no hot reload. Going back is `mode dev` and a restart. The mode lives in `serve.config.json`, so the hidden launcher and the logon task follow it without being edited.
 
+## Handing the work to an agent
+
+The source picker carries the instructions you would otherwise write by hand. Open it, choose AI Instructions, and paste the result into whatever agent owns the other project: it names the folder to write into, the `string-theory/1` fields that make a file judgeable, the wrap law, and the validator command to run before handing it back. The same text opens from the empty state of the inbox, so the first export needs no prior conversation.
+
 ## Where things live
 
 | Path | What it holds |
 | --- | --- |
 | `data/` | Runtime state: config, the sealed key vault, the OAuth session store, the usage ledger, the log. Gitignored, delete it to reset. |
 | `profiles/` | Style profiles written by the analyst, one markdown file per app. |
-| `inbox/` | Exports you work on. Input only: the tool never writes there, and a rewrite leaves as a download. |
+| `inbox/` | Exports you work on. Input only: the tool never writes there, and a rewrite leaves as a download. Drop one file per app under `inbox/<project>/` and it appears in the source picker without a restart. |
 | `samples/demo.strings.json` | The sample the empty state loads, with one row in each verdict. |
 
 Keys are encrypted with AES-256-GCM under `data/master.key` and never returned to the browser; OAuth sessions are sealed the same way, with only the expiry and the account label readable. The local server has no authentication because it only listens on loopback. Do not expose port 4317 to a network.

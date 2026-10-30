@@ -5,10 +5,13 @@ import {
   Check,
   Files,
   FolderOpen,
+  Robot,
   WarningCircle,
   X
 } from '@phosphor-icons/react'
 import type { DocumentProgress, DocumentRecord, InboxEntry, InboxListing } from '../types'
+import { aiInstructions, instructionTarget } from '../lib/aiInstructions'
+import { AiInstructions } from './AiInstructions'
 
 export type SourceSummary = {
   id: string
@@ -31,6 +34,7 @@ type Props = {
   onRemoveDoc: (id: string) => void
   onRescan: () => void
   onOpenFile: () => void
+  onToast: (kind: 'ok' | 'error', message: string) => void
 }
 
 function relativeTime(stamp: number | string): string {
@@ -84,9 +88,11 @@ export function SourcePicker({
   onOpenInbox,
   onRemoveDoc,
   onRescan,
-  onOpenFile
+  onOpenFile,
+  onToast
 }: Props) {
   const [open, setOpen] = useState(false)
+  const [instructionsOpen, setInstructionsOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -186,6 +192,15 @@ export function SourcePicker({
                 <FolderOpen size={11} />
                 Open file
               </button>
+              <button
+                type="button"
+                onClick={() => setInstructionsOpen(true)}
+                title="Instructions you can paste into the agent that owns another project"
+                className="flex h-6.5 items-center gap-1 rounded-md px-1.5 text-[10.5px] text-fg-dim hover:bg-ink-800 hover:text-fg"
+              >
+                <Robot size={11} />
+                AI Instructions
+              </button>
             </div>
           </div>
 
@@ -198,9 +213,13 @@ export function SourcePicker({
             </div>
 
             {!inboxFiles.length ? (
-              <p className="px-3 pb-2 text-[11px] leading-relaxed text-fg-faint">
-                Empty. Another project or agent writes one export here per app, and it shows up without a restart.
-              </p>
+              <button
+                type="button"
+                onClick={() => setInstructionsOpen(true)}
+                className="block w-full px-3 pb-2 text-left text-[11px] leading-relaxed text-fg-faint underline decoration-line-strong underline-offset-2 transition-colors hover:text-fg-dim hover:decoration-fg-dim"
+              >
+                Empty. Send this to your AI agent to generate a project file.
+              </button>
             ) : (
               <ul className="divide-y divide-line pb-1">
                 {inboxFiles.map((entry) => {
@@ -396,6 +415,14 @@ export function SourcePicker({
           </div>
         </div>
       ) : null}
+
+      <AiInstructions
+        open={instructionsOpen}
+        onClose={() => setInstructionsOpen(false)}
+        prompt={aiInstructions({ inboxDir: inbox?.dir ?? 'inbox', app: current?.label })}
+        target={instructionTarget({ inboxDir: inbox?.dir ?? 'inbox', app: current?.label })}
+        onToast={onToast}
+      />
     </div>
   )
 }

@@ -732,6 +732,7 @@ export default function App() {
             onRemoveDoc={removeDoc}
             onRescan={() => void scanInbox()}
             onOpenFile={pickFile}
+            onToast={pushToast}
           />
         }
         count={rows.length}

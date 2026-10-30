@@ -115,6 +115,12 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - A session is a bearer token and an API key is not: `chat()` takes `auth`, and the Anthropic branch sends `anthropic-beta: oauth-2025-04-20` only for a session.
 - `npm run smoke:oauth` must pass before a sign-in change ships. It stubs the endpoints, so it proves the request shapes and the refresh path without an account; it cannot prove a provider still accepts them.
 
+## Agent instructions
+
+- `src/lib/aiInstructions.ts` is the only copy of the prompt handed to another agent. It restates the rules in `docs/format.md` in paste-sized form, and it builds the target path from the live inbox so the folder it names is the folder this app reads.
+- A format change touches `docs/format.md`, the schema, `FormatSpec` and this prompt in the same commit. `scripts/validate-export.mjs` is the arbiter: an export produced from the prompt must exit 0 or the prompt is wrong.
+- The instructions open from two places on purpose: the inbox empty state, and an AI Instructions button in the picker header, which must work when files are already present.
+
 ## Settings layout
 
 - Settings is two tabs, Provider and Workspace, as a real `tablist` with arrow keys. Provider holds the provider grid and that provider's credentials. Workspace holds the default pass, fit bands and budgets, the extra instruction, the sources inbox, style profiles, the measurement font and usage. A new control belongs in Workspace unless it is about connecting a provider.
