@@ -149,8 +149,10 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 
 - `shared/change-prompt.mjs` builds the instructions from the working set, and `scripts/change-prompt.test.mjs` checks it without a browser (`npm run test:changes`). One line per changed string, in the shape `Replace "old" with "new" in <section> (id: …)`.
 - A line must survive being pasted alone: it names its own area and role unless the group heading above it already says the area, and quotes and line breaks are escaped the JSON way so the line never wraps.
+- An emptied row marked complete is a removal, and its line is `Remove "<old>" in <section>`, never `Replace … with ""`. `isRemoval()` and `isPendingEmpty()` in `shared/change-prompt.mjs` are the only definition; an empty row that is not complete is a draft and is excluded, then reported in the stats.
 - An id is dropped only when the source text is unique in the file. Two rows with one source and two rewrites would otherwise be indistinguishable lines.
 - The section comes from the tags, never from an invented grouping: first tag is the role, the rest are the area. An untagged row falls back to the first segment of its `where` line rather than being hidden.
+- The export marks the same case: an emptied, completed row writes `removed: true` beside `state: "done"`, so a merge tool does not have to infer a deletion from an empty string.
 - `Generate Prompt` sits last in the footer, after `Export JSON`, with the same primary (ink) treatment. Nothing about this feature requires an exporter, a converter or a file round trip.
 
 ## Tags

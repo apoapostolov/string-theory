@@ -81,7 +81,15 @@ Apply 2 string changes in Session Transcripts.
 
 Each line names the text as it is now, the text it must become, and the section the tags describe. The rules above the list say to match exactly, to touch nothing else, to keep placeholders and shortcuts byte for byte, and to report a line it could not find rather than guess at one. The list closes by asking for a count of what was applied.
 
-The grouping comes from the tags: the heading is the part of the app (`Transcripts`, `Settings`, `Upload`) and the line names the role inside it (`Button text`, `Hint`, `Error`). Two switches change the shape — grouping can be off, and ids can be left out unless a source text appears twice with different rewrites, in which case the id stays because it is the only thing that separates the lines. Quotes and line breaks inside a string are escaped the way JSON escapes them, so a line stays one line.
+The grouping comes from the tags: the heading is the part of the app (`Transcripts`, `Settings`, `Upload`) and the line names the role inside it (`Button text`, `Hint`, `Error`). A row emptied and marked complete is a removal, and the list says so:
+
+```
+Remove "Rewrites stay on this machine." in Hint (id: app.hint)
+```
+
+"Replace this with nothing" reads to a model like a mistake, and it tends to produce an empty label where the code needed the whole line gone. The rules above the list spell the difference out: delete the line, the key and its entry, and any separator that only existed to glue it to its neighbour, without renumbering anything around it. An emptied row that is still in progress is a draft, not an instruction, so it is left out of the list and counted on the header instead. The row itself wears a small `removes` tag, so the intent is visible while you work.
+
+Two switches change the shape — grouping can be off, and ids can be left out unless a source text appears twice with different rewrites, in which case the id stays because it is the only thing that separates the lines. Quotes and line breaks inside a string are escaped the way JSON escapes them, so a line stays one line.
 
 `Copy prompt` takes the whole thing; `Copy lines only` takes just the change list for an agent that already knows the job. Nothing about this needs a metadata file, an exporter change, or an app that speaks the format.
 

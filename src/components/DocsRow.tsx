@@ -166,6 +166,11 @@ function DocsShell({
             </span>
           ) : null}
           {paragraphLines > 1 ? <span className="tabular-nums">{paragraphLines} lines</span> : null}
+          {!row.text.trim() && row.state === 'done' ? (
+            <span className="text-over">removes this passage</span>
+          ) : !row.text.trim() ? (
+            <span className="text-fg-faint">empty draft, not sent until it is marked complete</span>
+          ) : null}
           {row.busy ? <span className="text-fg-dim">polishing</span> : null}
           {row.error ? <span className="truncate text-over">{row.error}</span> : null}
         </div>

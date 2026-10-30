@@ -1,6 +1,6 @@
 // The change prompt against a real-shaped working set, without a browser.
 // Run: node scripts/change-prompt.test.mjs
-import { areaOf, buildChangePrompt, changeLine, roleOf, sectionOf } from '../shared/change-prompt.mjs'
+import { areaOf, buildChangePrompt, changeLine, isPendingEmpty, isRemoval, roleOf, sectionOf } from '../shared/change-prompt.mjs'
 
 const rows = [
   { id: 'transcripts.panel.title', source: 'Session Transcripts', text: 'Transcripts', where: 'panel header', tags: ['heading', 'transcripts'] },
@@ -44,6 +44,30 @@ check('duplicate sources force the id to stay', twin.lines.every((line) => line.
 check('duplicate sources are counted', twin.stats.ambiguous === 1, String(twin.stats.ambiguous))
 
 check('a line for a string with a line break escapes it', changeLine({ id: 'x', source: 'one\ntwo', text: 'one two', tags: ['paragraph'] }).includes('\\n'), changeLine({ id: 'x', source: 'one\ntwo', text: 'one two', tags: ['paragraph'] }))
+
+// Removing a string is an instruction of its own: an emptied row marked
+// complete says the line should go, and "replace this with nothing" reads to a
+// model like a mistake.
+const withRemoval = [
+  { id: 'buttons.save', source: 'Save changes', text: '', state: 'done', tags: ['button', 'settings'] },
+  { id: 'buttons.draft', source: 'Draft', text: '', state: 'wip', tags: ['button'] },
+  { id: 'buttons.keep', source: 'Keep', text: 'Retain', state: 'done', tags: ['button'] }
+]
+const removal = buildChangePrompt(withRemoval, { app: 'Moo' })
+check('an emptied completed row becomes a Remove line', removal.lines.some((line) => line.startsWith('Remove "Save changes"')), removal.lines[0])
+check('a rewrite never says Remove', removal.lines.some((line) => line === 'Replace "Keep" with "Retain" in Button text (id: buttons.keep)'), removal.lines[1])
+check('an empty draft is left out', !removal.text.includes('"Draft"'), 'draft excluded')
+check('drafts are counted, not silently dropped', removal.stats.pending === 1, String(removal.stats.pending))
+check('removals are counted', removal.stats.removals === 1, String(removal.stats.removals))
+check('the header states how many remove', removal.text.includes('1 of them remove a string'), 'header line')
+check('the rules forbid an empty label', /Do not leave an empty label/.test(removal.text), 'removal rule')
+check('the report asks for removals', /how many strings you removed/.test(removal.text), 'footer')
+check('a whitespace-only row is still a removal', isRemoval({ source: 'Row', text: '  \n ', state: 'done' }), 'trim')
+check('an empty untouched row is not a removal', !isRemoval({ source: 'Row', text: '', state: 'normal' }), 'state matters')
+check('a completed row with text is not a removal', !isRemoval({ source: 'Row', text: 'Row', state: 'done' }), 'text matters')
+check('a draft empty row is pending', isPendingEmpty({ source: 'Row', text: '', state: 'wip' }), 'pending')
+const allRemovals = buildChangePrompt([{ id: 'a', source: 'One', text: '', state: 'done' }])
+check('a list of only removals says so', allRemovals.text.includes('All 1 of them remove a string.'), 'header')
 
 const failed = checks.filter((entry) => !entry.pass)
 for (const entry of checks) console.log(`${entry.pass ? 'PASS ' : 'FAIL '} ${entry.name}${entry.detail ? ` — ${entry.detail}` : ''}`)

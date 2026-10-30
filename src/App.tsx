@@ -763,7 +763,9 @@ export default function App() {
         ...(row.note ? { note: row.note } : {}),
         ...(row.font ? { font: row.font } : {}),
         changed: row.text !== row.source,
-        state: row.state
+        state: row.state,
+        // An emptied row marked complete means the string is gone.
+        ...(!row.text.trim() && row.state === 'done' && row.source.trim() ? { removed: true } : {})
       }))
     }
   }, [])

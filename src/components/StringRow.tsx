@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { ArrowCounterClockwise, CheckCircle, Sparkle, WarningCircle } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, CheckCircle, Sparkle, WarningCircle, X } from '@phosphor-icons/react'
 import type { Fit, FontMetrics, ModeId, Row } from '../types'
 import { charFit, px, wrapText, worstFit, type WrapFit, type WrapResult } from '../lib/metrics'
 import { Meter } from './Meter'
@@ -158,6 +158,12 @@ function RowShell({
                     <span className="shrink-0 text-fg-faint/50">·</span>
                     <span className="shrink-0 text-[10.5px] text-fg-faint">{row.maxChars} ch</span>
                   </>
+                ) : null}
+                {!row.text.trim() && row.state === 'done' ? (
+                  <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-over/40 bg-over/10 px-1.5 py-[1px] text-[9.5px] tracking-[0.06em] text-over uppercase">
+                    <X size={9} weight="bold" />
+                    removes
+                  </span>
                 ) : null}
                 {row.ai ? (
                   <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-line bg-ink-800 px-1.5 py-[1px] text-[9.5px] tracking-[0.06em] text-fg-dim uppercase">

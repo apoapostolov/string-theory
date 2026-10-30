@@ -292,6 +292,16 @@ for entry in rewritten.strings:
 
 An app that cannot read this format back still has options. `Generate Prompt` in the footer writes the changed strings as instructions: one line per change, `Replace "old" with "new" in <section> (id: …)`, grouped by the part of the app the tags name, with the matching rules stated above the list. It reads from the working set, not from the file, so nothing has to be exported first. Quotes and line breaks are escaped the JSON way so every change stays on one line.
 
+## Removals
+
+A rewrite can also mean that the string should go. The convention is `text: ""` with `state: "done"`, and the export adds `removed: true` so a merge tool does not have to infer a deletion from an empty value:
+
+```json
+{ "id": "settings.legacy.hint", "text": "", "previous": "Kept for older builds.", "state": "done", "removed": true }
+```
+
+An empty `text` with any other state is an unfinished draft: it says nothing about the string and must be ignored rather than applied as a deletion. The change prompt follows the same rule — it writes `Remove "<old>" in <section>` for a removal, and leaves drafts out entirely.
+
 ## Validating
 
 ```bash

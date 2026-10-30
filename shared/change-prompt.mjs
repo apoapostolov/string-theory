@@ -50,9 +50,26 @@ export function roleOf(row) {
   return tags.length ? tagLabel(tags[0]) : sectionOf(row)
 }
 
+/**
+ * A string emptied and marked complete is a removal, not a rewrite.
+ *
+ * Deleting a line from a dialog is a normal editing job, and "replace this with
+ * nothing" reads like a mistake to a model: it produces an empty label or an
+ * empty key where the code needed the whole line gone. The verb says which it is.
+ */
+export function isRemoval(row) {
+  return Boolean(row) && !String(row.text ?? '').trim() && row.state === 'done' && Boolean(String(row.source ?? '').trim())
+}
+
+/** Emptied but not finished: a draft, not an instruction. Never sent. */
+export function isPendingEmpty(row) {
+  return Boolean(row) && !String(row.text ?? '').trim() && !isRemoval(row)
+}
+
 export function changeLine(row, { includeIds = true, section } = {}) {
   const where = section ?? sectionOf(row)
   const id = includeIds && row?.id ? ` (id: ${row.id})` : ''
+  if (isRemoval(row)) return `Remove ${quoted(row.source)} in ${where}${id}`
   return `Replace ${quoted(row.source)} with ${quoted(row.text)} in ${where}${id}`
 }
 
@@ -61,7 +78,12 @@ export function changeLine(row, { includeIds = true, section } = {}) {
  */
 export function buildChangePrompt(rows, options = {}) {
   const { app = 'the app', group = true, includeIds = true, linesOnly = false } = options
-  const changed = (rows ?? []).filter((row) => row && row.text !== row.source)
+  const touched = (rows ?? []).filter((row) => row && row.text !== row.source)
+  // An empty row that is still being drafted says nothing yet; sending it would
+  // either empty a string by accident or delete one before the author decided.
+  const pending = touched.filter(isPendingEmpty).length
+  const changed = touched.filter((row) => !isPendingEmpty(row))
+  const removals = changed.filter(isRemoval).length
 
   // A source text that appears twice with different rewrites needs its id, not
   // just its section, or the agent has to guess which one the line means.
@@ -91,7 +113,14 @@ export function buildChangePrompt(rows, options = {}) {
     return {
       text: lines.join('\n'),
       lines,
-      stats: { changed: changed.length, sections: sections.size, ambiguous, untagged: ordered.filter((row) => !(row.tags ?? []).length).length }
+      stats: {
+        changed: changed.length,
+        removals,
+        pending,
+        sections: sections.size,
+        ambiguous,
+        untagged: ordered.filter((row) => !(row.tags ?? []).length).length
+      }
     }
   }
 
@@ -111,27 +140,46 @@ export function buildChangePrompt(rows, options = {}) {
     for (const line of lines) body.push(`- ${line}`)
   }
 
+  const removalsLine =
+    removals === 0
+      ? null
+      : removals === lines.length
+        ? `All ${removals} of them remove a string.`
+        : `${removals} of them remove a string.`
+
   const header = [
     `Apply ${lines.length} string change${lines.length === 1 ? '' : 's'} in ${app}.`,
+    removalsLine,
     '',
     'Each line names the text as it is now, the text it must become, and where it appears.',
     '',
     'Rules:',
     '- Match the current text exactly inside the named section. Where a line carries an id, prefer the string with that id.',
     '- Change only these strings. Do not reword, reformat or reorder anything else, and do not touch translations of them.',
+    '- A line that says Remove means delete that string outright: the line, the key and its entry, plus any separator that only existed to glue it to its neighbour. Do not leave an empty label, an empty key or an empty translation slot behind.',
+    '- Removing a string is not permission to renumber, reflow or tidy the code around it.',
     '- Keep placeholders ({name}, %s, :count), keyboard shortcuts, file paths and punctuation byte for byte.',
     '- Quoted text is escaped the way JSON escapes it: \\" is a quote inside the string, \\n is a line break.',
     '- If a line has no match in the code, leave the code alone and say so in your report instead of guessing.'
-  ]
+  ].filter((line) => line !== null)
 
   const footer = [
     '',
-    'When you are done, report how many of these changes you applied, and list every line you could not find.'
+    removals
+      ? 'When you are done, report how many of these changes you applied and how many strings you removed, and list every line you could not find.'
+      : 'When you are done, report how many of these changes you applied, and list every line you could not find.'
   ]
 
   return {
     text: [...header, '', ...body, ...footer].join('\n'),
     lines,
-    stats: { changed: changed.length, sections: sections.size, ambiguous, untagged: ordered.filter((row) => !(row.tags ?? []).length).length }
+    stats: {
+      changed: changed.length,
+      removals,
+      pending,
+      sections: sections.size,
+      ambiguous,
+      untagged: ordered.filter((row) => !(row.tags ?? []).length).length
+    }
   }
 }

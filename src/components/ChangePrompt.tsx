@@ -75,8 +75,15 @@ export function ChangePrompt({ open, onClose, rows, app, onToast }: Props) {
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-5 py-2.5">
           <span className="st-num font-mono text-[11px] text-fg-dim">
-            {stats.changed} change{stats.changed === 1 ? '' : 's'} · {stats.sections} section{stats.sections === 1 ? '' : 's'}
+            {stats.changed} change{stats.changed === 1 ? '' : 's'}
+            {stats.removals ? ` · ${stats.removals} removal${stats.removals === 1 ? '' : 's'}` : ''} · {stats.sections} section
+            {stats.sections === 1 ? '' : 's'}
           </span>
+          {stats.pending ? (
+            <span className="text-[11px] text-fg-faint">
+              {stats.pending} emptied row{stats.pending === 1 ? ' is' : 's are'} still in progress, so {stats.pending === 1 ? 'it is' : 'they are'} left out
+            </span>
+          ) : null}
           {stats.ambiguous ? (
             <span className="text-[11px] text-near">
               {stats.ambiguous} source text{stats.ambiguous === 1 ? '' : 's'} repeated, so those lines keep their id
