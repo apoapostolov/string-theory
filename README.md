@@ -7,12 +7,12 @@
 <p align="center">Pixel-aware rewriting for interface copy, with a human decision on every string.</p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.1.0-3DDC97?style=flat-square">
+  <img alt="version" src="https://img.shields.io/badge/version-1.0.0-3DDC97?style=flat-square">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square">
   <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A5%2022-339933?style=flat-square">
   <img alt="platform" src="https://img.shields.io/badge/platform-windows%20%7C%20macOS%20%7C%20linux-4C566A?style=flat-square">
   <img alt="network" src="https://img.shields.io/badge/network-loopback%20only-3DDC97?style=flat-square">
-  <img alt="smoke" src="https://img.shields.io/badge/smoke-19%2F19-3DDC97?style=flat-square">
+  <img alt="smoke" src="https://img.shields.io/badge/smoke-31%2F31-3DDC97?style=flat-square">
 </p>
 
 <p align="center">
@@ -168,7 +168,7 @@ The list is the product, so it is built to be read rather than looked at:
 - `Tab` reaches the source state glyph, the input, the pass control and the revert button in reading order. The row being edited lights its edge through `:focus-within`.
 - Dialogs trap focus, close on `Escape` and hand focus back to the control that opened them. A closed settings drawer is `inert`, so it never catches a stray tab.
 - Reduced motion removes the entrance animations, the meter easing and the shimmer, and keeps the state changes instant.
-- Contrast is computed, not eyeballed: `npm run check:contrast` checks 17 text and border pairs against WCAG 2.1 AA, and the build is expected to keep all of them passing.
+- Contrast is computed, not eyeballed: `npm run check:contrast` checks 21 text and border pairs against WCAG 2.1 AA, and the build is expected to keep all of them passing.
 
 ## Quick start
 
@@ -229,7 +229,7 @@ Keys are encrypted with AES-256-GCM under `data/master.key` and never returned t
 ```powershell
 npm run build                        # tsc --noEmit && vite build
 npm run check:contrast               # WCAG ratios for every token pair
-npm run smoke                        # 19 end-to-end checks; needs the server up
+npm run smoke                        # 31 end-to-end checks; needs the server up
 node scripts/validate-export.mjs samples/demo.strings.json
 ```
 
@@ -238,6 +238,11 @@ There is no test framework. `scripts/smoke.mjs` starts a stub OpenAI-compatible 
 `scripts/oauth-flow.mjs` points the token endpoints at a local stub and checks the three sign-in shapes without borrowing an account: the PKCE parameters on the Claude authorize URL, the code exchange, the Codex device handshake, refresh rotation, a spent flow being refused, and the headers each authentication style puts on the wire.
 
 The architecture, the invariants that must not drift, and the map of which file owns which job are in [`AGENTS.md`](AGENTS.md). The screenshots and the banner are regenerated from `brand/` at fixed sizes.
+
+## Changelog
+
+[CHANGELOG.md](CHANGELOG.md) lists what each public release added. 1.0.0 is the
+first.
 
 ## License
 

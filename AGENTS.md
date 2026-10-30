@@ -227,8 +227,8 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 
 ## Verifying a change
 
-1. `npm run build` clean, and `npm run check:contrast` at 17/17.
-2. `npm run serve:status` healthy, then `npm run smoke` at 19/19 and `npm run smoke:oauth` at 47/47.
+1. `npm run build` clean, and `npm run check:contrast` at 21/21.
+2. `npm run serve:status` healthy, then `npm run smoke` at 31/31 and `npm run smoke:oauth` at 47/47.
 3. `node scripts/validate-export.mjs samples/demo.strings.json` valid.
 4. Load the app, load the sample, and check the bands: one red row (lay out the lines), one amber orphan with its percentage, green rows with a clean two-line wrap, and the per-string 16px title measuring wider than the 14px rows.
 5. Put two files in `inbox/`, open both, edit one, switch, reload: the picker must show both progress numbers and the edits must survive.

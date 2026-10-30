@@ -1,7 +1,7 @@
 {
   "name": "string-theory",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "A local string-editing studio: rewrite an app's exported UI strings against real pixel budgets, then export the replacements.",
   "license": "MIT",

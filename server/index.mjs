@@ -2,7 +2,7 @@
 // Binds to loopback only. Provider keys never reach the browser.
 
 import { createServer } from 'node:http'
-import { createReadStream, existsSync, statSync } from 'node:fs'
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
@@ -56,7 +56,9 @@ const DIST = resolve(HERE, '..', 'dist')
 const PROFILES = join(ROOT, 'profiles')
 const HOST = process.env.ST_HOST ?? '127.0.0.1'
 const PORT = Number(process.env.ST_PORT ?? 4317)
-const VERSION = '0.1.0'
+// The manifest is the only place a version is written; a hardcoded copy here
+// was still claiming 0.1.0 after the release.
+const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
 function stylesDir() {
   const configured = String(getConfig().styleDir ?? '').trim()
