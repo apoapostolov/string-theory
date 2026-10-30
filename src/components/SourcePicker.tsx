@@ -10,7 +10,6 @@ import {
   X
 } from '@phosphor-icons/react'
 import type { DocumentProgress, DocumentRecord, InboxEntry, InboxListing } from '../types'
-import { aiInstructions, instructionTarget } from '../lib/aiInstructions'
 import { AiInstructions } from './AiInstructions'
 
 export type SourceSummary = {
@@ -419,8 +418,8 @@ export function SourcePicker({
       <AiInstructions
         open={instructionsOpen}
         onClose={() => setInstructionsOpen(false)}
-        prompt={aiInstructions({ inboxDir: inbox?.dir ?? 'inbox', app: current?.label })}
-        target={instructionTarget({ inboxDir: inbox?.dir ?? 'inbox', app: current?.label })}
+        inboxDir={inbox?.dir ?? 'inbox'}
+        defaultApp={current?.label}
         onToast={onToast}
       />
     </div>
