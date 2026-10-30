@@ -6,6 +6,33 @@ The app exports its strings with an id, the line of UI each one appears in, and 
 
 Machine-readable contract: [`string-theory.schema.json`](string-theory.schema.json). Checker: `node scripts/validate-export.mjs <file>`. In-app reference: the **info** button in the header.
 
+## Tags
+
+`tags` is a list of short names saying what the string does. One is enough; two or three make a string findable from both directions:
+
+```json
+{ "id": "settings.retention", "text": "Keep recordings for 30 days", "tags": ["label", "settings"] }
+```
+
+The first tag is the string's role, taken from the standard vocabulary below. Further tags group strings that belong together, and a project is free to invent them: `settings`, `checkout`, `onboarding`, `widget`. A custom tag is written the same way as a standard one, lowercase and hyphenated.
+
+The tool builds a rail of every tag in the file, each with its own progress (`3/12 done`). Clicking one narrows the list to those strings; several at once can mean any or all of them. That is how a person works through only the hints, only the help paragraphs, or only one screen's worth of strings.
+
+| Group | Tags |
+| --- | --- |
+| Structure | `page-title` `heading` `subheading` `section-title` `overline` `caption` `dialog-title` `dialog-body` |
+| Controls | `label` `placeholder` `button` `action` `link` `tab` `menu-item` `dropdown` `checkbox` `radio` `switch` `slider` `stepper` `search` `shortcut` |
+| Help | `hint` `tooltip` `help-paragraph` `empty-state` `onboarding` |
+| Feedback | `error` `warning` `success` `info` `status` `toast` `confirmation` `progress` `count` |
+| Navigation | `nav-item` `breadcrumb` `footer` `sidebar` |
+| Data display | `table-header` `table-cell` `column-label` `filter` `sort` `summary` `badge` `banner` |
+| Content | `paragraph` `list-item` `quote` `legal` `marketing` `accessibility` |
+| Literals | `number-unit` `unit` `date-time` `variable` `brand` `proper-noun` `code` `url` `email` |
+
+Names outside the table are custom tags and are kept as written. A known alias (`header` for `heading`, `btn` for `button`) still loads, and the validator says which standard tag it belongs to.
+
+`note` is an optional free sentence about the string, shown with its details. It is for context the layout cannot express, such as "only appears when a recording fails". It never contains a rewrite.
+
 ## Exchange model
 
 ```

@@ -21,6 +21,8 @@ export type PolishRequest = {
     maxLines?: number
     maxChars: number | null
     px: number
+    tags?: string[]
+    note?: string
     appContext?: string
   }
   mode?: ModeId

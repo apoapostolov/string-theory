@@ -30,6 +30,8 @@ import { ImportReport } from './components/ImportReport'
 import { SourcePicker, type SourceSummary } from './components/SourcePicker'
 import { StylePanel } from './components/StylePanel'
 import { Toasts, type Toast } from './components/Toasts'
+import { TagBar, type TagCount } from './components/TagBar'
+import { customTagsIn, isStandardTag, normalizeTag, tagLabel } from './lib/tags'
 import { Button } from './components/Button'
 
 const LIBRARY_KEY = 'string-theory.library.v2'
@@ -69,7 +71,15 @@ function toRows(parsed: ParsedFile): Row[] {
 
 /** Working sets saved before states existed load as untouched rows. */
 function revive(rows: Row[]): Row[] {
-  return rows.map((row) => ({ ...row, busy: false, error: null, state: row.state ?? 'normal' }))
+  return rows.map((row) => ({
+    ...row,
+    busy: false,
+    error: null,
+    // Working sets saved before tags existed carry no list at all.
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    note: typeof row.note === 'string' ? row.note : '',
+    state: row.state ?? 'normal'
+  }))
 }
 
 function metaOf(parsed: ParsedFile): FileMeta {
@@ -107,6 +117,8 @@ export default function App() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<FilterId>('all')
+  const [activeTags, setActiveTags] = useState<string[]>([])
+  const [tagMode, setTagMode] = useState<'any' | 'all'>('any')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [specOpen, setSpecOpen] = useState(false)
   const [styleOpen, setStyleOpen] = useState(false)
@@ -476,6 +488,8 @@ export default function App() {
             text: row.text,
             where: row.where,
             maxPx: row.maxPxPerLine,
+            tags: row.tags ?? [],
+            note: row.note,
             maxPxPerLine: row.maxPxPerLine,
             maxLines: row.maxLines,
             maxChars: row.maxChars,
@@ -536,6 +550,60 @@ export default function App() {
 
   const dirty = useMemo(() => decorated.filter((entry) => entry.changed).length, [decorated])
 
+  /** Every tag in the file with its own progress, standard tags first. */
+  const tagIndex = useMemo<{ tags: TagCount[]; untagged: number }>(() => {
+    const seen = new Map<string, TagCount>()
+    let untagged = 0
+    for (const entry of decorated) {
+      const tags = entry.row.tags ?? []
+      if (!tags.length) untagged += 1
+      for (const id of tags) {
+        const current = seen.get(id) ?? { id, total: 0, done: 0, wip: 0, group: '' }
+        current.total += 1
+        if (entry.row.state === 'done') current.done += 1
+        if (entry.row.state === 'wip') current.wip += 1
+        seen.set(id, current)
+      }
+    }
+    const tags = [...seen.values()].sort((a, b) => {
+      const standard = Number(isStandardTag(b.id)) - Number(isStandardTag(a.id))
+      if (standard) return standard
+      if (a.total !== b.total) return b.total - a.total
+      return a.id.localeCompare(b.id)
+    })
+    return { tags, untagged }
+  }, [decorated])
+
+  const isTagFiltering = activeTags.length > 0
+
+  const matchesTags = useCallback(
+    (row: Row) => {
+      if (!activeTags.length) return true
+      const tags = row.tags ?? []
+      if (activeTags.includes('~untagged') && tags.length === 0) return true
+      const named = activeTags.filter((tag) => tag !== '~untagged')
+      if (!named.length) return false
+      return tagMode === 'all' ? named.every((tag) => tags.includes(tag)) : named.some((tag) => tags.includes(tag))
+    },
+    [activeTags, tagMode]
+  )
+
+  const toggleTag = useCallback((id: string) => {
+    setActiveTags((current) => (current.includes(id) ? current.filter((tag) => tag !== id) : [...current, id]))
+  }, [])
+
+  const toggleRowTag = useCallback((key: string, tag: string) => {
+    const id = normalizeTag(tag)
+    if (!id) return
+    setRows((current) =>
+      current.map((row) => {
+        if (row.key !== key) return row
+        const tags = row.tags ?? []
+        return { ...row, tags: tags.includes(id) ? tags.filter((value) => value !== id) : [...tags, id] }
+      })
+    )
+  }, [])
+
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return decorated.filter((entry) => {
@@ -544,15 +612,17 @@ export default function App() {
       if (filter === 'done' && entry.row.state !== 'done') return false
       if (filter === 'near' && entry.fit !== 'near') return false
       if (filter === 'over' && entry.fit !== 'over') return false
+      if (!matchesTags(entry.row)) return false
       if (!needle) return true
       return (
         entry.row.id.toLowerCase().includes(needle) ||
         entry.row.source.toLowerCase().includes(needle) ||
         entry.row.text.toLowerCase().includes(needle) ||
-        entry.row.where.toLowerCase().includes(needle)
+        entry.row.where.toLowerCase().includes(needle) ||
+        (entry.row.tags ?? []).some((tag) => tag.includes(needle) || tagLabel(tag).toLowerCase().includes(needle))
       )
     })
-  }, [decorated, filter, query])
+  }, [decorated, filter, query, matchesTags])
 
   // Evidence for the style analyst: finished rewrites, never untouched rows.
   const stylePairs = useMemo<StylePair[]>(
@@ -567,6 +637,8 @@ export default function App() {
         })),
     [decorated]
   )
+
+  const customTags = useMemo(() => customTagsIn(rows), [rows])
 
   const docSummaries = useMemo<SourceSummary[]>(() => {
     const list = Object.values(library.docs).map((doc) => ({
@@ -613,6 +685,8 @@ export default function App() {
         maxLines: row.maxLines,
         maxPxTotal: row.maxPxTotal,
         maxChars: row.maxChars,
+        tags: row.tags ?? [],
+        ...(row.note ? { note: row.note } : {}),
         ...(row.font ? { font: row.font } : {}),
         changed: row.text !== row.source,
         state: row.state
@@ -764,6 +838,18 @@ export default function App() {
         />
       ) : null}
 
+      {hasFile ? (
+        <TagBar
+          tags={tagIndex.tags}
+          active={activeTags}
+          mode={tagMode}
+          untagged={tagIndex.untagged}
+          onToggle={toggleTag}
+          onMode={setTagMode}
+          onClear={() => setActiveTags([])}
+        />
+      ) : null}
+
       {hasFile && reportOpen && meta?.issues?.length ? (
         <ImportReport
           fileName={meta.name}
@@ -792,13 +878,23 @@ export default function App() {
                 onRevert={onRevert}
                 onCycleState={onCycleState}
                 onResetState={onResetState}
+                customTags={customTags}
+                activeTags={activeTags}
+                onToggleTag={toggleRowTag}
+                onFilterTag={toggleTag}
               />
             ))}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 py-24 text-center">
             <p className="text-[13px] text-fg-dim">No strings match that filter.</p>
-            <Button size="sm" variant="quiet" onClick={() => { setFilter('all'); setQuery('') }}>
+            {isTagFiltering ? (
+              <p className="text-[11.5px] text-fg-faint">
+                {activeTags.map((tag) => (tag === '~untagged' ? 'Untagged' : tagLabel(tag))).join(tagMode === 'all' ? ' + ' : ' or ')}
+                {' '}narrows the list; the status filter still applies.
+              </p>
+            ) : null}
+            <Button size="sm" variant="quiet" onClick={() => { setFilter('all'); setQuery(''); setActiveTags([]) }}>
               Clear filters
             </Button>
           </div>

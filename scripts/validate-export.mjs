@@ -10,6 +10,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { TAG_ALIASES, isStandardTag, readTags, tagLabel } from '../shared/tags.mjs'
 
 const FORMAT = 'string-theory/1'
 const args = process.argv.slice(2)
@@ -100,6 +101,7 @@ if (envelope) {
 const ids = new Map()
 let missingBudget = 0
 let missingWhere = 0
+let untagged = 0
 const defaultBudget =
   envelope && typeof envelope.defaultMaxPxPerLine === 'number' && envelope.defaultMaxPxPerLine > 0
     ? envelope.defaultMaxPxPerLine
@@ -184,10 +186,38 @@ if (list) {
     if (entry.state !== undefined && !['normal', 'wip', 'done'].includes(entry.state)) {
       add('error', `${path}.state`, 'must be normal, wip or done')
     }
+
+    const rawTags = entry.tags ?? entry.tag
+    if (rawTags !== undefined) {
+      if (!Array.isArray(rawTags) && typeof rawTags !== 'string') {
+        add('error', `${path}.tags`, 'must be an array of tag names, or a comma separated string')
+      } else {
+        const tags = readTags(rawTags)
+        if (!tags.length) add('warn', `${path}.tags`, 'is empty; drop the field or name at least one tag')
+        for (const tag of tags) {
+          if (!isStandardTag(tag) && TAG_ALIASES[tag]) {
+            add('warn', `${path}.tags`, `"${tag}" is a known alias; write "${TAG_ALIASES[tag]}" so the tool groups it with the standard tag`)
+          } else if (!isStandardTag(tag) && tag.length > 40) {
+            add('warn', `${path}.tags`, `"${tag.slice(0, 40)}…" is longer than a tag needs to be`)
+          }
+        }
+      }
+    } else {
+      untagged += 1
+    }
+
+    if (entry.note !== undefined && typeof entry.note !== 'string') {
+      add('error', `${path}.note`, 'must be a string')
+    }
   })
 
   if (missingBudget) {
     add('warn', 'strings', `${missingBudget} of ${list.length} strings have no maxPx and no defaultMaxPx: nothing can be flagged as wrapping`)
+  }
+  if (untagged && untagged === list.length) {
+    add('warn', 'strings', 'no tags anywhere: the tag rail stays empty, so no string can be focused by role')
+  } else if (untagged) {
+    add('warn', 'strings', `${untagged} of ${list.length} strings carry no tag`)
   }
   if (missingWhere && missingWhere === list.length) {
     add('warn', 'strings', 'no where line anywhere: the operator loses the "where is this shown" context')

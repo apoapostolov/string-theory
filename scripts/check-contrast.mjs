@@ -39,7 +39,11 @@ const PAIRS = [
   ['fg', 'ink-800', 'body', 'button label on a raised surface'],
   ['ink-950', 'fg', 'body', 'primary button label'],
   ['line-input', 'ink-850', 'ui', 'input border against its fill'],
-  ['line-input', 'ink-950', 'ui', 'input border against the page']
+  ['line-input', 'ink-950', 'ui', 'input border against the page'],
+  ['fg-dim', 'ink-850', 'body', 'tag pill label'],
+  ['fg-faint', 'ink-850', 'body', 'tag pill count'],
+  ['fg-dim', 'ink-800', 'body', 'tag chip on a row'],
+  ['line-input', 'ink-950', 'ui', 'tag pill boundary against the page']
 ]
 
 const srgb = (value) => {

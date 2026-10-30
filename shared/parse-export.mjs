@@ -3,6 +3,8 @@
 // needs the same verdict when it lists the inbox. Plain ESM so Node can load it
 // without a build step; types live in parse-export.d.mts.
 
+import { readTags } from './tags.mjs'
+
 export const FORMAT_ID = 'string-theory/1'
 
 export const DEFAULT_FONT = { family: 'Segoe UI', size: 14, weight: 400, letterSpacing: 0 }
@@ -28,6 +30,8 @@ const PER_LINE_KEYS = [
 const LINES_KEYS = ['maxLines', 'max_lines', 'lines', 'wrapLines', 'wrap_lines']
 const TOTAL_PX_KEYS = ['maxPxTotal', 'max_px_total', 'totalMaxPx', 'total_max_px', 'maxPxString', 'max_px_string']
 const MAX_CHARS_KEYS = ['maxChars', 'max_chars', 'maxLength', 'max_length', 'charLimit', 'char_limit', 'limit']
+const TAG_KEYS = ['tags', 'tag', 'categories', 'category', 'kinds']
+const NOTE_KEYS = ['note', 'notes', 'comment']
 const PX_KEYS = ['px', 'pil', 'PIL', 'width', 'measuredPx', 'measured_px']
 const FONT_KEYS = ['font', 'textFont', 'text_font', 'typography']
 
@@ -169,6 +173,8 @@ export function parseExport(raw, name) {
   let badMaxChars = 0
   let skipped = 0
   let longText = 0
+  let badTags = 0
+  let noTags = 0
 
   list.forEach((entry, index) => {
     if (typeof entry === 'string') {
@@ -184,6 +190,8 @@ export function parseExport(raw, name) {
         maxLines: 1,
         maxPxTotal: fallback,
         maxChars: null,
+        tags: [],
+        note: '',
         font: null
       })
       return
@@ -237,6 +245,13 @@ export function parseExport(raw, name) {
       maxChars = null
     }
 
+    const rawTags = pick(entry, TAG_KEYS)
+    const tags = readTags(rawTags)
+    if (rawTags !== undefined && rawTags !== null && !Array.isArray(rawTags) && typeof rawTags !== 'string') {
+      badTags += 1
+    }
+    if (!tags.length) noTags += 1
+
     const px = num(pick(entry, PX_KEYS))
     rows.push({
       key: `${index}:${baseId}:${count}`,
@@ -249,6 +264,8 @@ export function parseExport(raw, name) {
       // declared total that disagrees is reported and recomputed.
       maxPxTotal: maxPxPerLine ? maxPxPerLine * maxLines : cleanTotal,
       maxChars,
+      tags,
+      note: str(pick(entry, NOTE_KEYS)).trim(),
       font: readFontOverride(pick(entry, FONT_KEYS))
     })
   })
@@ -259,6 +276,20 @@ export function parseExport(raw, name) {
       level: 'error',
       code: 'no-strings',
       message: 'No string array found. The file needs a `strings` array or a bare array of string objects.'
+    })
+  }
+  if (badTags) {
+    issues.push({
+      level: 'warn',
+      code: 'bad-tags',
+      message: `${badTags} tags value${badTags === 1 ? ' was' : 's were'} not a string list and ${badTags === 1 ? 'was' : 'were'} ignored. Use \`tags: ["heading", "settings"]\`.`
+    })
+  }
+  if (noTags && noTags < list.length) {
+    issues.push({
+      level: 'warn',
+      code: 'no-tags',
+      message: `${noTags} of ${list.length} strings carry no tag, so they cannot be focused by role.`
     })
   }
   if (skipped) {

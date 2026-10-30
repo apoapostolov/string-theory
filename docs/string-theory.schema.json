@@ -4,13 +4,19 @@
   "title": "String Theory export",
   "description": "One JSON file per application. Exports the app's own UI strings with a pixel budget so a human can rewrite them and the app can merge the rewrites back by id. Canonical form only: the loader also accepts documented aliases, but an exporter should emit exactly these names.",
   "oneOf": [
-    { "$ref": "#/$defs/envelope" },
-    { "$ref": "#/$defs/stringArray" }
+    {
+      "$ref": "#/$defs/envelope"
+    },
+    {
+      "$ref": "#/$defs/stringArray"
+    }
   ],
   "$defs": {
     "envelope": {
       "type": "object",
-      "required": ["strings"],
+      "required": [
+        "strings"
+      ],
       "properties": {
         "format": {
           "type": "string",
@@ -26,7 +32,9 @@
           "type": "string",
           "description": "One line about the screen or feature, sent with every AI prompt."
         },
-        "font": { "$ref": "#/$defs/font" },
+        "font": {
+          "$ref": "#/$defs/font"
+        },
         "defaultMaxPx": {
           "type": "number",
           "exclusiveMinimum": 0,
@@ -37,18 +45,25 @@
           "exclusiveMinimum": 0,
           "description": "Line budget for strings that do not carry their own maxPxPerLine."
         },
-        "strings": { "$ref": "#/$defs/stringArray" }
+        "strings": {
+          "$ref": "#/$defs/stringArray"
+        }
       },
       "additionalProperties": true
     },
     "stringArray": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/string" }
+      "items": {
+        "$ref": "#/$defs/string"
+      }
     },
     "font": {
       "type": "object",
-      "required": ["family", "size"],
+      "required": [
+        "family",
+        "size"
+      ],
       "description": "The font the pixel figures are measured in. Must match what the app renders with.",
       "properties": {
         "family": {
@@ -63,8 +78,21 @@
         },
         "weight": {
           "oneOf": [
-            { "type": "number", "minimum": 100, "maximum": 900 },
-            { "type": "string", "enum": ["regular", "normal", "medium", "semibold", "bold"] }
+            {
+              "type": "number",
+              "minimum": 100,
+              "maximum": 900
+            },
+            {
+              "type": "string",
+              "enum": [
+                "regular",
+                "normal",
+                "medium",
+                "semibold",
+                "bold"
+              ]
+            }
           ],
           "default": 400,
           "description": "Numeric weight preferred. Strings are wider at heavier weights."
@@ -79,7 +107,10 @@
     },
     "string": {
       "type": "object",
-      "required": ["id", "text"],
+      "required": [
+        "id",
+        "text"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -121,13 +152,43 @@
           "description": "Character ceiling, only when the app enforces one itself."
         },
         "state": {
-          "enum": ["normal", "wip", "done"],
+          "enum": [
+            "normal",
+            "wip",
+            "done"
+          ],
           "description": "Written by the tool on export: untouched, in progress, or reviewed. Importers may ignore it."
         },
         "px": {
           "type": "number",
           "minimum": 0,
           "description": "Optional: the app's own measurement. Only used for the budget when maxPx is absent."
+        },
+        "tags": {
+          "type": [
+            "array",
+            "string"
+          ],
+          "description": "What the string does. The first tag is its role from the shared vocabulary; further tags group strings that belong together, and a project may add its own.",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "examples": [
+            [
+              "label",
+              "settings"
+            ],
+            [
+              "button",
+              "upload"
+            ]
+          ]
+        },
+        "note": {
+          "type": "string",
+          "description": "A free sentence of context the layout cannot express. Never a rewrite."
         }
       },
       "additionalProperties": true

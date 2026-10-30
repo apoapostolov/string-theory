@@ -11,6 +11,7 @@ import {
 import type { Fit, FontMetrics, ModeId, Row, RowState } from '../types'
 import { charFit, px, wrapText, worstFit, type WrapFit, type WrapResult } from '../lib/metrics'
 import { Meter } from './Meter'
+import { RowTags } from './RowTags'
 import { HoverInfo } from './HoverInfo'
 
 const BORDER: Record<Fit, string> = {
@@ -38,6 +39,10 @@ type Props = {
   onRevert: (key: string) => void
   onCycleState: (key: string) => void
   onResetState: (key: string) => void
+  customTags: string[]
+  activeTags: string[]
+  onToggleTag: (key: string, tag: string) => void
+  onFilterTag: (tag: string) => void
 }
 
 const STATE_HINT: Record<RowState, string> = {
@@ -182,7 +187,11 @@ function RowShell({
   onPolish,
   onRevert,
   onCycleState,
-  onResetState
+  onResetState,
+  customTags,
+  activeTags,
+  onToggleTag,
+  onFilterTag
 }: Props) {
   const beforeWrap = wrapText(row.source, row.maxPxPerLine, font)
   const beforePx = beforeWrap.widest
@@ -205,6 +214,7 @@ function RowShell({
         <span>{row.maxPxTotal ? `${px(row.maxPxTotal)} px total` : 'no total'}</span>
         <span>{row.maxChars ? `limit ${row.maxChars} ch` : 'no char limit'}</span>
       </span>
+      {row.note ? <span className="mt-2 block text-fg-dim">note · {row.note}</span> : null}
       {overBy > 0 ? (
         <span className="mt-2 block text-over">Widest line is {Math.round(overBy)} px past the budget; it cannot fit.</span>
       ) : null}
@@ -273,6 +283,14 @@ function RowShell({
                 {row.where || 'location not exported'}
               </span>
             </HoverInfo>
+
+            <RowTags
+              tags={row.tags ?? []}
+              custom={customTags}
+              active={activeTags}
+              onFilter={onFilterTag}
+              onToggle={(tag) => onToggleTag(row.key, tag)}
+            />
           </div>
         </div>
 

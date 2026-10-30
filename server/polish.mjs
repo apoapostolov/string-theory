@@ -41,6 +41,7 @@ export function estimateChars(font, maxPx) {
 
 export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt }) {
   const setting = getMode(mode)
+  const tags = Array.isArray(item.tags) ? item.tags.filter((tag) => typeof tag === 'string' && tag) : []
   const perLine = item.maxPxPerLine ?? item.maxPx ?? 200
   const maxLines = Math.max(1, Number(item.maxLines) || 1)
   // A character budget for the whole string: every line gets the same box.
@@ -67,6 +68,10 @@ export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt })
       ? '- If it wraps, the last line must fill at least 40% of the box and carry at least two words. A one-word last line is a defect, not a fit.'
       : '- Keep it on one line: a wrap is a defect.',
     `- The string is shown here: ${item.where || 'not specified'}.`,
+    tags.length
+      ? `- Its role is ${tags[0]}${tags.length > 1 ? `, grouped as ${tags.slice(1).join(', ')}` : ''}. Write it the way that role expects: a button is an action, a hint explains, an error says what happened and what to do next.`
+      : null,
+    item.note ? `- Context from the export: ${item.note}` : null,
     contextLine && item.appContext ? `- Screen context: ${item.appContext}` : null,
     extraPrompt ? `- Extra instruction from the operator: ${extraPrompt}` : null,
     '- If the original already reads well and fits the budget, return it unchanged.',
@@ -80,6 +85,7 @@ export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt })
   const chars = item.text.length
   const user = [
     `id: ${item.id}`,
+    tags.length ? `tags: ${tags.join(', ')}` : null,
     item.where ? `shown at: ${item.where}` : null,
     `current: ${item.text}`,
     `length: ${chars} characters${measured}, budget ${perLine}px per line${maxLines > 1 ? ` across up to ${maxLines} lines` : ''} (~${hard} characters)`,

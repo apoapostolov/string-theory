@@ -44,6 +44,8 @@ const FIELDS: Array<[string, string, string, string]> = [
   ['maxPxTotal', 'number', 'optional', 'maxPxPerLine x maxLines. Recomputed when it disagrees.'],
   ['font', 'object', 'optional', 'Override for a string that is not in the file font, for example a 16px title.'],
   ['maxChars', 'number', 'optional', 'Character ceiling, only when the app enforces one itself.'],
+  ['tags', 'string[]', 'recommended', 'What the string does: heading, button, hint, plus grouping tags such as settings. The tag rail is built from these.'],
+  ['note', 'string', 'optional', 'A free sentence of context. It carries no rewrite.'],
   ['state', 'string', 'output', 'normal, wip or done. Written by the tool; importers may ignore it.']
 ]
 

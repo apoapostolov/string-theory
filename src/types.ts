@@ -17,6 +17,10 @@ export type ParsedRow = {
   /** maxPxPerLine × maxLines, or the declared total when there is no line budget. */
   maxPxTotal: number | null
   maxChars: number | null
+  /** What the string does: one or several tags from the shared vocabulary. */
+  tags: string[]
+  /** A free note from the export, shown with the row's details. */
+  note: string
   /** Measurement override for a string that does not use the file font. */
   font: FontMetrics | null
 }
@@ -39,6 +43,8 @@ export type ImportIssue = {
     | 'partial-max-px'
     | 'no-font'
     | 'bad-font-size'
+    | 'bad-tags'
+    | 'no-tags'
     | 'long-text'
   message: string
 }

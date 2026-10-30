@@ -126,6 +126,14 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - A format change touches `docs/format.md`, the schema, `FormatSpec` and this prompt in the same commit. `scripts/validate-export.mjs` is the arbiter: an export produced from the prompt must exit 0 or the prompt is wrong.
 - The instructions open from two places on purpose: the inbox empty state, and an AI Instructions button in the picker header, which must work when files are already present.
 
+## Tags
+
+- The vocabulary lives in `shared/tags.mjs` and nowhere else. The app, the parser, the validator and the prompt all read it, so a new standard tag is one entry plus the docs table.
+- A tag is metadata, not a rewrite: it never changes `text`. `tags` is an array of lowercase hyphenated names; the first is the string's role, the rest group strings that belong together, and a project may invent its own.
+- Counting is per tag and comes from the same decorated list the rows use, so a pill cannot disagree with the row it filters. `~untagged` is a UI sentinel for the empty case and is never written to a file.
+- Several selected tags combine with `any` by default, with a visible switch for `all`. The status filter and the search still apply on top, because the tag rail narrows a list rather than replacing it.
+- A working set saved before tags existed has no `tags` field; `revive()` supplies an empty list rather than letting `undefined` reach the rail.
+
 ## Settings layout
 
 - Settings is two tabs, Provider and Workspace, as a real `tablist` with arrow keys. Provider holds the provider grid and that provider's credentials. Workspace holds the default pass, fit bands and budgets, the extra instruction, the sources inbox, style profiles, the measurement font and usage. A new control belongs in Workspace unless it is about connecting a provider.

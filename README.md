@@ -66,6 +66,10 @@ The glyph at the left of each row is the whole workflow. Click it to move a stri
 
 Filters count by state (`Untouched`, `In progress`, `Completed`) and by fit (`Close to limit`, `Will wrap`), `Next issue` walks the spills, and the source picker shows the percentage finished per file, so a project parked halfway is visible before you open it. Several files stay open at once, each with its own working set, and switching between them never drops an edit.
 
+A second rail groups the strings by what they do. Every string carries one or more tags — `heading`, `hint`, `button`, `error`, `table-header`, and so on — plus any grouping tag the app invents, such as `settings` or `checkout`. Each tag shows its own progress (`3/12 done`), and clicking one narrows the list to those strings, so a pass over only the hints, or only one screen, is a click instead of a search. Several tags at once can mean any or all of them.
+
+![The tag rail narrowed to the hint strings](docs/app-tags.png)
+
 ## AI assist you can refuse
 
 Every AI action is per string and per click. There is no "polish all", because an unreviewed batch defeats the point of rewriting copy in your own words.

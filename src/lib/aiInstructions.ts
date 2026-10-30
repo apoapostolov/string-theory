@@ -71,10 +71,28 @@ Format id: string-theory/1. The block below shows the shape with three invented 
       "where": "<the screen and the line of UI where it appears>",
       "maxPxPerLine": 150,
       "maxLines": 1,
-      "maxChars": 22
+      "maxChars": 22,
+      "tags": ["label", "settings"]
     }
   ]
 }
+
+Tags are not decoration: they are how the person rewriting these strings works on one kind at a time.
+
+\`tags\` is a list. The first name says what the string does, chosen from this vocabulary:
+
+structure: page-title, heading, subheading, section-title, overline, caption, dialog-title, dialog-body
+controls: label, placeholder, button, action, link, tab, menu-item, dropdown, checkbox, radio, switch, slider, stepper, search, shortcut
+help: hint, tooltip, help-paragraph, empty-state, onboarding
+feedback: error, warning, success, info, status, toast, confirmation, progress, count
+navigation: nav-item, breadcrumb, footer, sidebar
+data: table-header, table-cell, column-label, filter, sort, summary, badge, banner
+content: paragraph, list-item, quote, legal, marketing, accessibility
+literals: number-unit, unit, date-time, variable, brand, proper-noun, code, url, email
+
+Further names group strings that belong together, and you should invent those for this app: settings, onboarding, checkout, widget, editor, the screen's own name. Two or three tags per string is usually right, one role plus one or two groups. Lowercase and hyphens, and reuse the same tag across the file instead of close variants (settings, never Setting or settings-screen).
+
+Use number-unit for a bare count with its unit, brand for a name that must never be translated, and add variable to anything containing {placeholders}.
 
 Rules the file has to keep to:
 
@@ -91,12 +109,13 @@ Validate before handing over, and again after any fix:
 
   node scripts/validate-export.mjs "<the file you wrote>"
 
-Exit code 0 means valid; anything else prints the repairs, and --strict makes warnings fail. A warning that the file matches the demo catalogue means the first step was skipped.
+Exit code 0 means valid; anything else prints the repairs, and --strict makes warnings fail. A warning that the file matches the demo catalogue means the first step was skipped; a warning that strings carry no tag means the tag list above was skipped.
 
 Then report, in this shape:
 - the absolute path you wrote, checked against the one above
 - how many rows the file has, against how many strings the source of truth holds
 - which files or folders you read them from
+- the tags you used, and how many strings carry each
 - every string or screen you left out, and why
 
 String Theory picks the file up from its inbox without a restart.`
