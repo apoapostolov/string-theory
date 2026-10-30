@@ -57,9 +57,37 @@ Prod serves `dist/` and the API from one process on 4317, with no Vite and no ho
 
    ![Close to limit filter showing a single amber row](docs/screenshot-close-to-limit.png)
 4. **Polish** sends one string to the connected AI provider for a grammar and style pass. The caret beside it runs Grammar, Style or Fit instead of the default pass. `Ctrl+Enter` inside an input does the same, `Esc` reverts that row.
-5. **Export JSON** downloads `<app>.rewritten.json` with the current text, the previous text and a `changed` flag per string. **Copy JSON** puts the same payload on the clipboard.
+5. **Export JSON** downloads `<app>.rewritten.json` with the current text, the previous text, the state and a `changed` flag per string. **Copy JSON** puts the same payload on the clipboard.
 
 Filters, search, `Next issue` and the status bar exist to get you to the two strings that will wrap, not to browse.
+
+### Marking progress
+
+Every string carries one of three states. The glyph at the left of the row is the whole control:
+
+| Glyph | State | How it gets there |
+| --- | --- | --- |
+| empty circle | untouched | an imported string |
+| filled check | completed | the first keystroke that changes the text, or a click |
+| half circle | in progress | a click on a completed string, when the rewrite is not settled yet |
+
+- **Click** moves forward: untouched → completed → in progress → completed.
+- **Right-click** returns any state to untouched, without touching the text.
+- Typing never downgrades a row: a started rewrite stays in progress until you say otherwise. Deleting the text back to the source returns the row to untouched, because nothing is changed any more.
+
+The filters count by state, the status bar reads `8 / 16 completed`, and the source picker shows each file's percentage so a project parked halfway is visible before you open it.
+
+### Learning your style
+
+**Style** in the header runs an analyst over every string you marked completed and actually changed. It reads the pairs (shipped text against your rewrite, with the screen each one appears on), and asks the connected model to state the differences as rules: voice, sentence shape, word swaps, length, punctuation, and what you never write.
+
+- It needs at least three completed rewrites; more is a better sample.
+- Only completed rows count, so drafts do not distort the profile.
+- The result is written to `profiles/<app>.md` with front matter naming the app, the pair count and the model, and it is in the shape a skill reference expects. Point **Settings → style folder** at your style skill's `references/` directory and it writes straight in.
+- The call is charged to the usage ledger like any other, and the panel shows the estimated cost before you run it.
+
+There is no automatic injection into the polish prompt yet: the profile is a document you review, not a hidden prompt. Wiring it into the polish system prompt is the next step once the rules read the way you want.
+
 
 ## Several projects at once
 
@@ -121,9 +149,13 @@ Errors block an export; warnings still load and show up in a dismissible strip a
 
 The provider set matches the one Lingarr Next exposes for AI work: OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Mistral, Qwen (DashScope), Z.ai, OpenCode Go, xAI, and a local OpenAI-compatible server for Ollama or LM Studio. Pick one in Settings, paste the key, fetch the model list (or type a model id), and it becomes the polish engine.
 
+**Keys or sign-in.** Where a provider publishes a real OAuth flow you can sign in instead of pasting a key. xAI is the one wired today: Settings → xAI → **sign-in** starts a device login, shows a code, and polls until you approve it in the browser. The session is used as a bearer token, refreshed automatically when it is close to expiry, and sealed with AES-256-GCM in `data/oauth.enc.json`; only the expiry and the account label are stored in the clear, and the browser never receives a token. A token you already hold can be pasted instead.
+
+Providers whose OAuth is a subscription or a first-party CLI session (OpenAI's ChatGPT plan, Anthropic's Claude subscription, Gemini's Code Assist) are key-only here on purpose: their flows are not offered to third-party clients, and inventing one would produce a button that fails. The flow table lives in `server/oauth.mjs`, so adding a provider is configuration, not surgery.
+
 - Keys are written to `data/keys.enc.json`, encrypted with AES-256-GCM under `data/master.key`. The browser never receives them; requests are proxied by the local server.
 - Each provider keeps its own endpoint override, so a gateway or proxy works without code changes.
-- xAI is API key only. The OAuth session Lingarr Next holds is its own and is not reusable here.
+- An explicit **API key** mode wins over a signed-in session, so you can keep both and choose.
 
 Every call is logged to `data/usage.json` with token counts and an estimated cost. The pricing table covers OpenAI, Anthropic, DeepSeek and `openrouter/free`; other providers record tokens but no cost, and the settings panel warns when today's calls cannot be priced. Daily and monthly USD budgets stop the polish calls when they are reached.
 
@@ -131,7 +163,9 @@ The prompt sends the string, its id, the location line, the measured width and a
 
 ## Data and privacy
 
-Everything lives under `data/` and is gitignored: `config.json`, `keys.enc.json`, `master.key`, `usage.json`, `server.log`. Delete the folder to reset. Working sets live in the browser's local storage under `string-theory.library.v2`, one record per source.
+Everything lives under `data/` and is gitignored: `config.json`, `keys.enc.json`, `oauth.enc.json`, `master.key`, `usage.json`, `server.log`. Delete the folder to reset. Working sets live in the browser's local storage under `string-theory.library.v2`, one record per source.
+
+Generated style profiles are different: they land in `profiles/` at the repo root (or wherever **Settings → style folder** points), because they are documents you keep and show to other writers, not runtime state.
 
 `inbox/` holds the exports you work on. It is gitignored apart from its README, and the tool never writes to it: the rewritten file is a download, not an edit in place.
 
@@ -145,7 +179,7 @@ The server has no authentication because it only listens on loopback. Do not exp
 | `npm run build` | Typecheck and build the client into `dist/` |
 | `npm run serve` | Supervisor in the mode from `serve.config.json` |
 | `npm start` | API server alone on 4317, serving `dist/`. No supervisor, no auto-restart |
-| `node scripts/smoke.mjs` | End-to-end check against a running server: provider round trip, prompt contents, usage accounting, budget guard, credential errors |
+| `node scripts/smoke.mjs` | End-to-end check against a running server: provider round trip, prompt contents, style analyst, profile listing, usage accounting, budget guard, credential errors |
 | `node scripts/validate-export.mjs <file>` | Check an export against the format contract. `--strict` fails on warnings too |
 
 ## Known limits

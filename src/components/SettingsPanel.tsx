@@ -11,6 +11,7 @@ import {
 import type { ConfigPayload, FontMetrics, ModeId, ProviderInfo } from '../types'
 import { api } from '../lib/api'
 import { fontInstalled } from '../lib/metrics'
+import { ProviderAuth } from './ProviderAuth'
 import { Button } from './Button'
 
 type Props = {
@@ -255,6 +256,7 @@ export function SettingsPanel({
                 hint={active.needsKey ? active.hint : 'Local server, no credential needed.'}
               >
                 <div className="space-y-2.5">
+                  <ProviderAuth provider={active} payload={payload} onPatch={onPatch} onToast={onToast} />
                   {active.needsKey ? (
                     <div className="flex gap-1.5">
                       <div className="relative flex-1">
@@ -456,6 +458,41 @@ export function SettingsPanel({
                   value={config?.inboxDir ?? ''}
                   onCommit={(value) => onPatch({ inboxDir: value.trim() })}
                   placeholder="inbox"
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section
+            title="Style profiles"
+            hint="Where the analyst writes <app>.md. Point it at your style skill's references folder and the rules load with the skill."
+          >
+            <div className="space-y-2.5">
+              <div className="rounded-lg border border-line bg-ink-900 px-2.5 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] tracking-[0.06em] text-fg-faint uppercase">Writes to</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(payload?.profiles.dir ?? '')
+                        onToast('ok', 'Profile path copied')
+                      } catch {
+                        onToast('error', 'Clipboard blocked by the browser')
+                      }
+                    }}
+                    className="ml-auto rounded px-1 text-[10px] text-fg-faint hover:bg-ink-800 hover:text-fg"
+                  >
+                    copy
+                  </button>
+                </div>
+                <p className="mt-1 font-mono text-[10.5px] break-all text-fg-dim">{payload?.profiles.dir ?? 'unknown'}</p>
+              </div>
+              <Field label="Override" hint="Relative to the app folder, or an absolute path. Leave empty for profiles/.">
+                <DraftInput
+                  value={config?.styleDir ?? ''}
+                  onCommit={(value) => onPatch({ styleDir: value.trim() })}
+                  placeholder="profiles"
                 />
               </Field>
             </div>

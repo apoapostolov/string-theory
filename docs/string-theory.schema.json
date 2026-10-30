@@ -99,6 +99,10 @@
           "minimum": 1,
           "description": "Character ceiling, only when the app enforces one itself."
         },
+        "state": {
+          "enum": ["normal", "wip", "done"],
+          "description": "Written by the tool on export: untouched, in progress, or reviewed. Importers may ignore it."
+        },
         "px": {
           "type": "number",
           "minimum": 0,

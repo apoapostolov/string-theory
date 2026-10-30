@@ -3,10 +3,12 @@ import {
   ArrowCounterClockwise,
   CaretDown,
   CheckCircle,
+  Circle,
+  CircleHalf,
   Sparkle,
   WarningCircle
 } from '@phosphor-icons/react'
-import type { Fit, FontMetrics, ModeId, Row } from '../types'
+import type { Fit, FontMetrics, ModeId, Row, RowState } from '../types'
 import { charFit, fitOf, measurePx, px, worstFit } from '../lib/metrics'
 import { Meter } from './Meter'
 import { HoverInfo } from './HoverInfo'
@@ -32,6 +34,41 @@ type Props = {
   onEdit: (key: string, text: string) => void
   onPolish: (key: string, mode?: ModeId) => void
   onRevert: (key: string) => void
+  onCycleState: (key: string) => void
+  onResetState: (key: string) => void
+}
+
+const STATE_HINT: Record<RowState, string> = {
+  normal: 'Untouched. Click to mark completed, right-click to clear.',
+  wip: 'In progress. Click for completed, right-click for untouched.',
+  done: 'Completed. Click to send back to in progress, right-click for untouched.'
+}
+
+/** One glyph carries the whole workflow: click to move forward, right-click to clear. */
+function StateGlyph({ state, onCycle, onReset }: { state: RowState; onCycle: () => void; onReset: () => void }) {
+  const tone =
+    state === 'done' ? 'text-ok' : state === 'wip' ? 'text-near' : 'text-fg-faint/70 hover:text-fg-faint'
+  return (
+    <button
+      type="button"
+      aria-label={`State: ${state === 'done' ? 'completed' : state === 'wip' ? 'in progress' : 'untouched'}`}
+      title={STATE_HINT[state]}
+      onClick={onCycle}
+      onContextMenu={(event) => {
+        event.preventDefault()
+        onReset()
+      }}
+      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors hover:bg-ink-800 ${tone}`}
+    >
+      {state === 'done' ? (
+        <CheckCircle size={16} weight="fill" />
+      ) : state === 'wip' ? (
+        <CircleHalf size={16} weight="bold" />
+      ) : (
+        <Circle size={15} />
+      )}
+    </button>
+  )
 }
 
 function RowShell({
@@ -41,7 +78,9 @@ function RowShell({
   canPolish,
   onEdit,
   onPolish,
-  onRevert
+  onRevert,
+  onCycleState,
+  onResetState
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -85,7 +124,8 @@ function RowShell({
       id={`row-${row.key}`}
       className={`${BORDER[fit]} border-b border-b-line/70 transition-colors hover:bg-ink-900/70`}
     >
-      <div className="flex items-center gap-2.5 px-4 pt-2.5">
+      <div className="flex items-center gap-2.5 px-3 pt-2.5">
+        <StateGlyph state={row.state} onCycle={() => onCycleState(row.key)} onReset={() => onResetState(row.key)} />
         <HoverInfo content={info} className="min-w-0 flex-1">
           <span className="block truncate font-mono text-[11px] text-fg-faint hover:text-fg-dim">{row.id}</span>
         </HoverInfo>
@@ -177,7 +217,7 @@ function RowShell({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 px-4 pt-1.5 pb-3 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-7">
+      <div className="grid grid-cols-1 gap-4 pr-4 pb-3 pl-3 pt-1.5 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-7">
         <div className="min-w-0">
           <HoverInfo content={info} className="block" width={400}>
             <span className="block text-[13.5px] leading-snug text-fg/95">{row.source}</span>

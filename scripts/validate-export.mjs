@@ -135,6 +135,10 @@ if (list) {
     if (maxChars !== undefined) {
       if (!Number.isInteger(maxChars) || maxChars < 1) add('error', `${path}.maxChars`, 'must be a positive integer')
     }
+
+    if (entry.state !== undefined && !['normal', 'wip', 'done'].includes(entry.state)) {
+      add('error', `${path}.state`, 'must be normal, wip or done')
+    }
   })
 
   if (missingBudget) {

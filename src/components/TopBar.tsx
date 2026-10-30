@@ -1,16 +1,17 @@
 import type { ReactNode } from 'react'
-import { Cpu, GearSix, Info, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { Cpu, GearSix, GraduationCap, Info, MagnifyingGlass, X } from '@phosphor-icons/react'
 import type { Fit, FontMetrics, ProviderInfo, UsageSummary } from '../types'
 import { IconButton } from './Button'
 
-export type FilterId = 'all' | 'changed' | 'near' | 'over' | 'untouched'
+export type FilterId = 'all' | 'normal' | 'wip' | 'done' | 'near' | 'over'
 
 const FILTERS: Array<{ id: FilterId; label: string }> = [
   { id: 'all', label: 'All' },
-  { id: 'changed', label: 'Rewritten' },
+  { id: 'normal', label: 'Untouched' },
+  { id: 'wip', label: 'In progress' },
+  { id: 'done', label: 'Completed' },
   { id: 'near', label: 'Close to limit' },
-  { id: 'over', label: 'Will wrap' },
-  { id: 'untouched', label: 'Untouched' }
+  { id: 'over', label: 'Will wrap' }
 ]
 
 type TopBarProps = {
@@ -24,6 +25,7 @@ type TopBarProps = {
   usage: UsageSummary | null
   onSettings: () => void
   onSpec: () => void
+  onStyle: (() => void) | null
 }
 
 export function TopBar({
@@ -36,7 +38,8 @@ export function TopBar({
   providerReady,
   usage,
   onSettings,
-  onSpec
+  onSpec,
+  onStyle
 }: TopBarProps) {
   const dot = provider && providerReady ? 'bg-ok' : provider ? 'bg-near' : 'bg-fg-faint/50'
 
@@ -94,6 +97,18 @@ export function TopBar({
         </span>
       </button>
 
+      {onStyle ? (
+        <button
+          type="button"
+          onClick={onStyle}
+          title="Learn my writing style from the strings I finished"
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-ink-850 px-2.5 text-[11.5px] text-fg-dim transition-colors hover:border-line-strong hover:text-fg"
+        >
+          <GraduationCap size={13} />
+          Style
+        </button>
+      ) : null}
+
       <IconButton label="Export format" onClick={onSpec} className="h-8 w-8">
         <Info size={15} />
       </IconButton>
@@ -143,7 +158,7 @@ export function FilterBar({ filter, onFilter, counts, fitCounts, total, showAllH
       <div className="ml-auto flex items-center gap-3 pr-1 font-mono text-[10.5px] text-fg-faint">
         {showAllHint ? <span>{showAllHint}</span> : null}
         <span>
-          {counts.changed} / {total} rewritten
+          {counts.done} / {total} completed
         </span>
       </div>
     </div>

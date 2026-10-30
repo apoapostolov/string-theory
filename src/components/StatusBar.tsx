@@ -2,8 +2,10 @@ import { ArrowRight, Copy, DownloadSimple, WarningCircle } from '@phosphor-icons
 import { Button } from './Button'
 
 type Props = {
-  changed: number
+  done: number
+  wip: number
   total: number
+  dirty: number
   over: number
   near: number
   onCopy: () => void
@@ -13,18 +15,22 @@ type Props = {
   canJump: boolean
 }
 
-export function StatusBar({ changed, total, over, near, onCopy, onExport, onRevertAll, onJump, canJump }: Props) {
-  const pct = total ? Math.round((changed / total) * 100) : 0
+export function StatusBar({ done, wip, total, dirty, over, near, onCopy, onExport, onRevertAll, onJump, canJump }: Props) {
+  const pct = total ? Math.round((done / total) * 100) : 0
 
   return (
     <footer className="flex h-12 shrink-0 items-center gap-4 border-t border-line bg-ink-925 px-4">
       <div className="flex items-center gap-2.5">
         <div className="relative h-1 w-28 overflow-hidden rounded-full bg-ink-700">
-          <div className="absolute inset-y-0 left-0 rounded-full bg-fg-dim transition-[width] duration-300" style={{ width: `${pct}%` }} />
+          <div
+            className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-300 ${pct === 100 ? 'bg-ok' : 'bg-fg-dim'}`}
+            style={{ width: `${pct}%` }}
+          />
         </div>
         <span className="font-mono text-[11px] text-fg-dim tabular-nums">
-          {changed} / {total}
+          {done} / {total} completed
         </span>
+        {wip > 0 ? <span className="font-mono text-[11px] text-near">{wip} in progress</span> : null}
       </div>
 
       {over > 0 ? (
@@ -45,7 +51,7 @@ export function StatusBar({ changed, total, over, near, onCopy, onExport, onReve
             <ArrowRight size={11} />
           </Button>
         ) : null}
-        <Button size="sm" variant="quiet" onClick={onRevertAll} disabled={changed === 0} className="h-8">
+        <Button size="sm" variant="quiet" onClick={onRevertAll} disabled={dirty === 0} className="h-8">
           Revert all
         </Button>
         <span className="mx-1 h-5 w-px bg-line" />

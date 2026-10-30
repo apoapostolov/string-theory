@@ -46,11 +46,15 @@ export type ParsedFile = {
   issues: ImportIssue[]
 }
 
+export type RowState = 'normal' | 'wip' | 'done'
+
 export type Row = ParsedRow & {
   text: string
   ai: boolean
   busy: boolean
   error: string | null
+  /** Workflow state: untouched, being rewritten, or finished. */
+  state: RowState
 }
 
 export type FileMeta = {
@@ -86,9 +90,37 @@ export type InboxListing = {
 }
 
 export type DocumentProgress = {
-  changed: number
+  done: number
+  wip: number
   total: number
   percent: number
+}
+
+/** One source/rewrite pair the style analyst learns from. */
+export type StylePair = {
+  id: string
+  where: string
+  original: string
+  rewrite: string
+}
+
+export type StyleProfile = {
+  markdown: string
+  path: string
+  name: string
+  pairs: number
+  provider: string
+  model: string
+  usage: { inputTokens: number; outputTokens: number; costUsd: number | null; ms: number }
+}
+
+export type ProfileEntry = {
+  name: string
+  app: string
+  pairs: number
+  model: string
+  created: string
+  bytes: number
 }
 
 /** A working set kept in the browser for one file. */
@@ -152,6 +184,40 @@ export type Config = {
   polishPrompt: string
   contextLine: boolean
   inboxDir: string
+  styleDir: string
+  authModes: Record<string, 'key' | 'oauth'>
+}
+
+export type OAuthProvider = {
+  id: string
+  label: string
+  kind: 'device' | 'token'
+  note: string
+  allowsTokenImport: boolean
+}
+
+export type OAuthSession = {
+  present: boolean
+  expiresAt: string
+  account: string
+  mode: string
+}
+
+export type DeviceStart = {
+  flowId: string
+  userCode: string
+  verificationUri: string
+  verificationUriComplete: string
+  interval: number
+  expiresAt: string
+}
+
+export type DevicePoll = {
+  status: 'pending' | 'connected' | 'expired' | 'denied' | 'error'
+  message?: string
+  interval?: number
+  account?: string
+  expiresAt?: string
 }
 
 export type ConfigPayload = {
@@ -161,6 +227,8 @@ export type ConfigPayload = {
   usage: UsageSummary
   modes: Array<{ id: ModeId; label: string; instruction: string }>
   inbox: { dir: string }
+  profiles: { dir: string }
+  oauth: { providers: OAuthProvider[]; sessions: Record<string, OAuthSession> }
 }
 
 export type Fit = 'ok' | 'near' | 'over' | 'none'

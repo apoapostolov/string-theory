@@ -81,6 +81,7 @@ Measurement is done on the machine that runs the tool. If the family is not inst
 | `maxPx` | number | recommended | Pixel width the line must not exceed. Greater than zero. |
 | `maxChars` | integer | optional | Character ceiling, only when the app enforces one itself. |
 | `px` | number | optional | The app's own measurement. Only used as a budget when `maxPx` is absent. |
+| `state` | string | output only | `normal`, `wip` or `done`, written by the tool. Importers may ignore it; it exists so a diff shows what was reviewed. |
 
 Guidance that decides whether the export is useful:
 

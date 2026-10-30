@@ -1,4 +1,14 @@
-import type { ConfigPayload, ModeId, UsageSummary, InboxListing } from '../types'
+import type {
+  ConfigPayload,
+  DevicePoll,
+  DeviceStart,
+  ModeId,
+  UsageSummary,
+  InboxListing,
+  StylePair,
+  StyleProfile,
+  ProfileEntry
+} from '../types'
 
 export type PolishRequest = {
   item: {
@@ -76,7 +86,23 @@ export const api = {
   openInboxFile: (id: string) =>
     request<{ id: string; name: string; dir: string; bytes: number; mtime: number; json: unknown }>(
       `/api/files/open?id=${encodeURIComponent(id)}`
-    )
+    ),
+  runStyle: (body: { app: string; context: string; pairs: StylePair[]; providerId?: string; model?: string }) =>
+    request<StyleProfile>('/api/style/run', { method: 'POST', body: JSON.stringify(body) }),
+  profiles: () => request<{ dir: string; exists: boolean; files: ProfileEntry[] }>('/api/profiles'),
+  profile: (name: string) =>
+    request<{ name: string; markdown: string; bytes: number }>(`/api/profiles/${encodeURIComponent(name)}`),
+  startDevice: (providerId: string) =>
+    request<DeviceStart>(`/api/oauth/${providerId}/device`, { method: 'POST' }),
+  pollDevice: (providerId: string, flowId: string) =>
+    request<DevicePoll>(`/api/oauth/${providerId}/device/${encodeURIComponent(flowId)}/poll`, { method: 'POST' }),
+  importOAuthToken: (providerId: string, body: { access: string; refresh?: string; expiresAt?: string }) =>
+    request<{ connected: boolean; expiresAt: string }>(`/api/oauth/${providerId}/token`, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }),
+  disconnectOAuth: (providerId: string) =>
+    request<ConfigPayload>(`/api/oauth/${providerId}`, { method: 'DELETE' })
 }
 
 export { ApiError }

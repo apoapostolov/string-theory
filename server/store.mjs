@@ -11,6 +11,7 @@ export const DATA_DIR = resolve(process.env.ST_DATA_DIR ?? join(HERE, '..', 'dat
 
 const CONFIG_FILE = join(DATA_DIR, 'config.json')
 const KEYS_FILE = join(DATA_DIR, 'keys.enc.json')
+const OAUTH_FILE = join(DATA_DIR, 'oauth.enc.json')
 const USAGE_FILE = join(DATA_DIR, 'usage.json')
 const MASTER_FILE = join(DATA_DIR, 'master.key')
 
@@ -24,7 +25,9 @@ const CONFIG_DEFAULTS = {
   endpoints: {},
   polishPrompt: '',
   contextLine: true,
-  inboxDir: ''
+  inboxDir: '',
+  styleDir: '',
+  authModes: {}
 }
 
 function ensureData() {
@@ -117,6 +120,71 @@ export function patchConfig(patch) {
 export function endpointFor(providerId, fallback) {
   const saved = getConfig().endpoints?.[providerId]
   return saved && String(saved).trim() ? String(saved).trim() : fallback
+}
+
+// ---------------------------------------------------------------- oauth sessions
+
+function readOAuthFile() {
+  return readJson(OAUTH_FILE, {})
+}
+
+function writeOAuthFile(value) {
+  writeJson(OAUTH_FILE, value)
+}
+
+/**
+ * Sessions live beside the keys, sealed the same way. The expiry and the account
+ * label stay readable so Settings can show "connected, expires in 40 min" without
+ * ever unsealing a token.
+ */
+export function getOAuthSession(providerId) {
+  const record = readOAuthFile()[providerId]
+  if (!record) return null
+  return {
+    access: record.access ? open(record.access) : '',
+    refresh: record.refresh ? open(record.refresh) : '',
+    expiresAt: record.expiresAt ?? '',
+    account: record.account ?? '',
+    mode: record.mode ?? 'device'
+  }
+}
+
+export function saveOAuthSession(providerId, session) {
+  return serialised(() => {
+    const records = readOAuthFile()
+    records[providerId] = {
+      access: session.access ? seal(session.access) : null,
+      refresh: session.refresh ? seal(session.refresh) : null,
+      expiresAt: session.expiresAt ?? '',
+      account: session.account ?? '',
+      mode: session.mode ?? 'device',
+      savedAt: new Date().toISOString()
+    }
+    writeOAuthFile(records)
+    return { ...session, access: undefined, refresh: undefined }
+  })
+}
+
+export function clearOAuthSession(providerId) {
+  return serialised(() => {
+    const records = readOAuthFile()
+    delete records[providerId]
+    writeOAuthFile(records)
+  })
+}
+
+export function oauthHints() {
+  const records = readOAuthFile()
+  const out = {}
+  for (const [providerId, record] of Object.entries(records)) {
+    out[providerId] = {
+      present: Boolean(record.access || record.refresh),
+      expiresAt: record.expiresAt ?? '',
+      account: record.account ?? '',
+      mode: record.mode ?? 'device'
+    }
+  }
+  return out
 }
 
 // ---------------------------------------------------------------- keys

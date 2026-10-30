@@ -139,9 +139,11 @@ function providerError(label, status, body) {
     const parsed = JSON.parse(body)
     detail =
       parsed?.error?.message ??
+      (typeof parsed?.error === 'string' ? parsed.error : '') ??
       parsed?.message ??
       parsed?.error?.[0]?.message ??
       parsed?.errors?.[0]?.message ??
+      parsed?.detail ??
       ''
   } catch {
     detail = String(body ?? '').slice(0, 300)

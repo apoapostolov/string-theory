@@ -68,7 +68,7 @@ function Progress({ progress, muted }: { progress: DocumentProgress; muted?: boo
         {progress.percent}%
       </span>
       <span className="w-[38px] font-mono text-[10px] tabular-nums text-fg-faint">
-        {progress.changed}/{progress.total}
+        {progress.done}/{progress.total}
       </span>
     </span>
   )
@@ -127,10 +127,14 @@ export function SourcePicker({
   }
 
   const totalProgress = docs.reduce(
-    (acc, doc) => ({ changed: acc.changed + doc.progress.changed, total: acc.total + doc.progress.total }),
-    { changed: 0, total: 0 }
+    (acc, doc) => ({
+      done: acc.done + doc.progress.done,
+      wip: acc.wip + doc.progress.wip,
+      total: acc.total + doc.progress.total
+    }),
+    { done: 0, wip: 0, total: 0 }
   )
-  const overall = totalProgress.total ? Math.round((totalProgress.changed / totalProgress.total) * 100) : 0
+  const overall = totalProgress.total ? Math.round((totalProgress.done / totalProgress.total) * 100) : 0
 
   return (
     <div ref={root} className="relative min-w-0">
@@ -146,9 +150,9 @@ export function SourcePicker({
         <span className={`truncate text-[13px] font-medium ${current ? 'text-fg' : 'text-fg-dim'}`}>
           {current?.label ?? 'Choose a source'}
         </span>
-        {current && current.progress.changed > 0 ? (
+        {current && current.progress.done > 0 ? (
           <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-fg-faint">
-            {current.progress.changed}/{current.progress.total}
+            {current.progress.done}/{current.progress.total}
           </span>
         ) : null}
         <CaretDown size={10} weight="bold" className={`shrink-0 text-fg-faint transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -380,7 +384,8 @@ export function SourcePicker({
           <div className="flex items-center gap-2 border-t border-line px-3 py-2">
             {totalProgress.total ? (
               <span className="font-mono text-[10px] text-fg-dim">
-                {overall}% overall · {totalProgress.changed}/{totalProgress.total} strings · {docs.length} open
+                {overall}% overall · {totalProgress.done}/{totalProgress.total} done
+                {totalProgress.wip > 0 ? ` · ${totalProgress.wip} in progress` : ''} · {docs.length} open
               </span>
             ) : (
               <span className="text-[10px] text-fg-faint">Pick a source to start rewriting.</span>

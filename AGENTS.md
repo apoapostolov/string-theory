@@ -21,7 +21,7 @@ node scripts/validate-export.mjs <file.json> [--strict]
 
 The app has one URL in both modes: <http://127.0.0.1:4317>. `scripts/serve.mjs` supervises both children, logs to `data/server.log`, restarts a crashed child with backoff, and refuses to start a second copy. `scripts/install-startup.ps1` registers the hidden logon task and the desktop shortcut, and runs `serve-hidden.vbs`, so nothing opens a console window.
 
-There is no test framework. `scripts/smoke.mjs` is the integration test: it starts a stub OpenAI-compatible provider, runs real polish calls through the server, checks prompt contents, token and cost accounting, the budget 402 and the missing-provider 400, then restores the config it changed. It must stay at 14/14.
+There is no test framework. `scripts/smoke.mjs` is the integration test: it starts a stub OpenAI-compatible provider, runs real polish and style-analyst calls through the server, checks prompt contents, token and cost accounting, the budget 402, the missing-provider 400, the analyst's three-pair floor and the profile listing, then restores the config it changed and deletes the profile it wrote. It must stay at 19/19.
 
 ## Map
 
@@ -43,6 +43,10 @@ There is no test framework. `scripts/smoke.mjs` is the integration test: it star
 | `scripts/install-startup.ps1` | Registers the logon task and the shortcut; `-Remove` undoes both. |
 | `serve.config.json` | `mode` (dev or prod) and `open`, read by every entry point. |
 | `server/inbox.mjs` | Inbox scan and read. Lists exports with app name, string count and issue counts. |
+| `server/style.mjs` | Style analyst: pair selection, the prompt, and reading and writing profiles. |
+| `server/oauth.mjs` | OAuth sessions: device flow, token exchange, refresh, token import. |
+| `src/components/StylePanel.tsx` | The analyst modal: evidence count, run, preview, saved profiles. |
+| `src/components/ProviderAuth.tsx` | Credentials per provider: API key or sign-in, with the device code UI. |
 | `server/providers.mjs` | Provider registry and the three wire formats (OpenAI-compatible, Anthropic, Gemini). |
 | `server/store.mjs` | Config, AES-256-GCM key vault, usage ledger. |
 | `server/polish.mjs` | Prompt building, character-budget estimate, output sanitising. |
@@ -79,6 +83,9 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - The supervisor owns the ports. Do not run `npm start` or a bare `vite` while it is up; stop it with `npm run serve:stop` first, and start it detached, never as a child of a shell that will exit.
 - Nothing starts a visible console window. Background starts go through `serve-hidden.vbs` or a scheduled task, never `cmd /c start` in a script.
 - Provider keys are sealed with AES-256-GCM under `data/master.key` and never returned to the browser. Only a masked hint may cross the wire.
+- OAuth sessions are sealed the same way in `data/oauth.enc.json`; only expiry and the account label stay readable. Never log a token, never send one to the client, and never write one into a profile, an export or a toast.
+- OAuth is offered only where the provider publishes a flow we can actually complete. No fake sign-in buttons: a provider without a flow stays key-only, and the table in `server/oauth.mjs` is the list.
+- String state is client-side workflow, not data the app owns: `normal`, `wip`, `done`. Typing a change promotes a row to `done`, a click cycles, a right-click clears, and reverting the text clears the state. Exports carry it as informational; no code may treat it as truth about the app.
 - `data/` is runtime state and gitignored. Do not commit a config, a ledger or a key file.
 - `inbox/` is input only. Never write to it from the tool, never delete from it, never commit its contents. A rewritten file leaves as a download.
 - The client is built offline: no CDN fonts, no remote scripts, no analytics.
@@ -96,7 +103,7 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 ## Verifying a change
 
 1. `npm run build` clean.
-2. `npm run serve:status` healthy, then `npm run smoke` at 14/14.
+2. `npm run serve:status` healthy, then `npm run smoke` at 19/19.
 3. `node scripts/validate-export.mjs samples/demo.strings.json` valid.
 4. Load the app, load the sample, and check the three bands still render: green row, amber row, red row with an overflow figure.
 5. Put two files in `inbox/`, open both, edit one, switch, reload: the picker must show both progress numbers and the edits must survive.

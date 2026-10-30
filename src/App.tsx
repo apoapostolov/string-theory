@@ -13,6 +13,8 @@ import type {
   ModeId,
   ParsedFile,
   Row,
+  RowState,
+  StylePair,
   UsageSummary
 } from './types'
 import { api } from './lib/api'
@@ -26,6 +28,7 @@ import { EmptyState } from './components/EmptyState'
 import { FormatSpec } from './components/FormatSpec'
 import { ImportReport } from './components/ImportReport'
 import { SourcePicker, type SourceSummary } from './components/SourcePicker'
+import { StylePanel } from './components/StylePanel'
 import { Toasts, type Toast } from './components/Toasts'
 import { Button } from './components/Button'
 
@@ -48,12 +51,25 @@ function slug(value: string): string {
 
 function progressOf(rows: Row[]): DocumentProgress {
   const total = rows.length
-  const changed = rows.filter((row) => row.text !== row.source).length
-  return { total, changed, percent: total ? Math.round((changed / total) * 100) : 0 }
+  const done = rows.filter((row) => row.state === 'done').length
+  const wip = rows.filter((row) => row.state === 'wip').length
+  return { total, done, wip, percent: total ? Math.round((done / total) * 100) : 0 }
 }
 
 function toRows(parsed: ParsedFile): Row[] {
-  return parsed.rows.map((row) => ({ ...row, text: row.source, ai: false, busy: false, error: null }))
+  return parsed.rows.map((row) => ({
+    ...row,
+    text: row.source,
+    ai: false,
+    busy: false,
+    error: null,
+    state: 'normal' as RowState
+  }))
+}
+
+/** Working sets saved before states existed load as untouched rows. */
+function revive(rows: Row[]): Row[] {
+  return rows.map((row) => ({ ...row, busy: false, error: null, state: row.state ?? 'normal' }))
 }
 
 function metaOf(parsed: ParsedFile): FileMeta {
@@ -93,6 +109,7 @@ export default function App() {
   const [filter, setFilter] = useState<FilterId>('all')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [specOpen, setSpecOpen] = useState(false)
+  const [styleOpen, setStyleOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(true)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [dragging, setDragging] = useState(false)
@@ -167,7 +184,7 @@ export default function App() {
         const activeId = saved.activeId && valid[saved.activeId] ? saved.activeId : ids[0]
         setLibrary({ activeId, docs: valid })
         setMeta(valid[activeId].meta)
-        setRows(valid[activeId].rows.map((row) => ({ ...row, busy: false, error: null })))
+        setRows(revive(valid[activeId].rows))
         pushToast('ok', `Restored ${ids.length} working set${ids.length === 1 ? '' : 's'}`)
         return
       }
@@ -186,7 +203,7 @@ export default function App() {
           version: saved.meta.version ?? 'string-theory/1',
           issues: Array.isArray(saved.meta.issues) ? saved.meta.issues : []
         },
-        rows: saved.rows.map((row) => ({ ...row, busy: false, error: null })),
+        rows: revive(saved.rows),
         savedAt: new Date().toISOString()
       }
       setLibrary({ activeId: doc.id, docs: { [doc.id]: doc } })
@@ -256,7 +273,7 @@ export default function App() {
     if (!target) return
     setLibrary({ activeId: id, docs })
     setMeta(target.meta)
-    setRows(target.rows.map((row) => ({ ...row, busy: false, error: null })))
+    setRows(revive(target.rows))
     setFilter('all')
     setQuery('')
     setReportOpen(true)
@@ -288,7 +305,7 @@ export default function App() {
           const doc = docs[next]
           setLibrary({ activeId: next, docs })
           setMeta(doc.meta)
-          setRows(doc.rows.map((row) => ({ ...row, busy: false, error: null })))
+          setRows(revive(doc.rows))
         } else {
           setLibrary({ activeId: null, docs })
           setMeta(null)
@@ -389,18 +406,44 @@ export default function App() {
   // ------------------------------------------------------------ editing
 
   const onEdit = useCallback((key: string, text: string) => {
-    setRows((current) => current.map((row) => (row.key === key ? { ...row, text, error: null } : row)))
+    setRows((current) =>
+      current.map((row) => {
+        if (row.key !== key) return row
+        // A rewrite counts as finished the moment it differs from the source;
+        // putting it back exactly means there is nothing left to review.
+        const state: RowState = text === row.source ? 'normal' : row.state === 'normal' ? 'done' : row.state
+        return { ...row, text, state, error: null }
+      })
+    )
+  }, [])
+
+  const onCycleState = useCallback((key: string) => {
+    setRows((current) =>
+      current.map((row) => {
+        if (row.key !== key) return row
+        const state: RowState = row.state === 'done' ? 'wip' : 'done'
+        return { ...row, state }
+      })
+    )
+  }, [])
+
+  const onResetState = useCallback((key: string) => {
+    setRows((current) => current.map((row) => (row.key === key ? { ...row, state: 'normal' } : row)))
   }, [])
 
   const onRevert = useCallback((key: string) => {
     setRows((current) =>
-      current.map((row) => (row.key === key ? { ...row, text: row.source, ai: false, error: null } : row))
+      current.map((row) =>
+        row.key === key ? { ...row, text: row.source, ai: false, error: null, state: 'normal' } : row
+      )
     )
   }, [])
 
   const onRevertAll = useCallback(() => {
     if (!window.confirm('Revert every rewrite in this file back to the source string?')) return
-    setRows((current) => current.map((row) => ({ ...row, text: row.source, ai: false, error: null })))
+    setRows((current) =>
+      current.map((row) => ({ ...row, text: row.source, ai: false, error: null, state: 'normal' }))
+    )
     pushToast('ok', 'All strings reverted')
   }, [pushToast])
 
@@ -408,7 +451,11 @@ export default function App() {
     () => payload?.providers.find((entry) => entry.id === payload.config.activeProvider) ?? null,
     [payload]
   )
-  const providerReady = Boolean(provider && (!provider.needsKey || payload?.keys[provider.id]?.present))
+  const oauthReady = Boolean(
+    provider && payload?.config.authModes?.[provider.id] !== 'key' && payload?.oauth.sessions?.[provider.id]?.present
+  )
+  const keyReady = Boolean(provider && (!provider.needsKey || payload?.keys[provider.id]?.present))
+  const providerReady = Boolean(provider && (oauthReady || keyReady))
 
   const polish = useCallback(
     async (key: string, mode?: ModeId) => {
@@ -467,11 +514,10 @@ export default function App() {
   }, [rows, font, warnRatio])
 
   const counts = useMemo(() => {
-    const base: Record<FilterId, number> = { all: decorated.length, changed: 0, near: 0, over: 0, untouched: 0 }
+    const base: Record<FilterId, number> = { all: decorated.length, normal: 0, wip: 0, done: 0, near: 0, over: 0 }
     const fitCounts: Record<Fit, number> = { ok: 0, near: 0, over: 0, none: 0 }
     for (const entry of decorated) {
-      if (entry.changed) base.changed += 1
-      else base.untouched += 1
+      base[entry.row.state] += 1
       if (entry.fit === 'near') base.near += 1
       if (entry.fit === 'over') base.over += 1
       fitCounts[entry.fit] += 1
@@ -479,11 +525,14 @@ export default function App() {
     return { base, fitCounts }
   }, [decorated])
 
+  const dirty = useMemo(() => decorated.filter((entry) => entry.changed).length, [decorated])
+
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return decorated.filter((entry) => {
-      if (filter === 'changed' && !entry.changed) return false
-      if (filter === 'untouched' && entry.changed) return false
+      if (filter === 'normal' && entry.row.state !== 'normal') return false
+      if (filter === 'wip' && entry.row.state !== 'wip') return false
+      if (filter === 'done' && entry.row.state !== 'done') return false
       if (filter === 'near' && entry.fit !== 'near') return false
       if (filter === 'over' && entry.fit !== 'over') return false
       if (!needle) return true
@@ -495,6 +544,20 @@ export default function App() {
       )
     })
   }, [decorated, filter, query])
+
+  // Evidence for the style analyst: finished rewrites, never untouched rows.
+  const stylePairs = useMemo<StylePair[]>(
+    () =>
+      decorated
+        .filter((entry) => entry.row.state === 'done' && entry.changed)
+        .map((entry) => ({
+          id: entry.row.id,
+          where: entry.row.where,
+          original: entry.row.source,
+          rewrite: entry.row.text
+        })),
+    [decorated]
+  )
 
   const docSummaries = useMemo<SourceSummary[]>(() => {
     const list = Object.values(library.docs).map((doc) => ({
@@ -539,7 +602,8 @@ export default function App() {
         where: row.where,
         maxPx: row.maxPx,
         maxChars: row.maxChars,
-        changed: row.text !== row.source
+        changed: row.text !== row.source,
+        state: row.state
       }))
     }
   }, [])
@@ -596,6 +660,14 @@ export default function App() {
     },
     [pushToast, scanInbox]
   )
+
+  const refreshPayload = useCallback(async () => {
+    try {
+      setPayload(await api.config())
+    } catch {
+      /* the toast already covered an API outage */
+    }
+  }, [])
 
   const setKey = useCallback(async (providerId: string, key: string) => {
     const next = await api.setKey(providerId, key)
@@ -659,6 +731,7 @@ export default function App() {
         usage={usage}
         onSettings={() => setSettingsOpen(true)}
         onSpec={() => setSpecOpen(true)}
+        onStyle={hasFile ? () => setStyleOpen(true) : null}
       />
 
       {apiDown ? (
@@ -702,6 +775,8 @@ export default function App() {
                 onEdit={onEdit}
                 onPolish={polish}
                 onRevert={onRevert}
+                onCycleState={onCycleState}
+                onResetState={onResetState}
               />
             ))}
           </div>
@@ -717,8 +792,10 @@ export default function App() {
 
       {hasFile ? (
         <StatusBar
-          changed={counts.base.changed}
+          done={counts.base.done}
+          wip={counts.base.wip}
           total={rows.length}
+          dirty={dirty}
           over={counts.fitCounts.over}
           near={counts.fitCounts.near}
           onCopy={onCopy}
@@ -742,6 +819,24 @@ export default function App() {
       />
 
       <FormatSpec open={specOpen} onClose={() => setSpecOpen(false)} />
+
+      <StylePanel
+        open={styleOpen}
+        onClose={() => setStyleOpen(false)}
+        app={meta?.app ?? ''}
+        context={meta?.context ?? ''}
+        pairs={stylePairs}
+        provider={provider}
+        providerReady={providerReady}
+        model={payload?.config.model || provider?.models[0] || ''}
+        profilesDir={payload?.profiles.dir ?? ''}
+        onOpenSettings={() => {
+          setStyleOpen(false)
+          setSettingsOpen(true)
+        }}
+        onToast={pushToast}
+        onUsage={refreshPayload}
+      />
 
       <Toasts toasts={toasts} onDismiss={dismissToast} />
 

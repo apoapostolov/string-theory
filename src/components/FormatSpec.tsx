@@ -37,7 +37,8 @@ const FIELDS: Array<[string, string, string, string]> = [
   ['text', 'string', 'required', 'The string as it ships today.'],
   ['where', 'string', 'recommended', 'The line of UI where it appears. Hover shows it; prompts carry it.'],
   ['maxPx', 'number', 'recommended', 'Pixel width the line must not exceed, measured in the file font.'],
-  ['maxChars', 'number', 'optional', 'Character ceiling, only when the app enforces one itself.']
+  ['maxChars', 'number', 'optional', 'Character ceiling, only when the app enforces one itself.'],
+  ['state', 'string', 'output', 'normal, wip or done. Written by the tool; importers may ignore it.']
 ]
 
 const ALIASES =
@@ -207,7 +208,7 @@ export function FormatSpec({ open, onClose }: Props) {
     "text": "Transcripts for this session",   // the rewrite
     "previous": "Session Transcripts",         // what it replaced
     "where": "...", "maxPx": 150, "maxChars": 22,
-    "changed": true
+    "changed": true, "state": "done"
   }
 ]`}
             </pre>

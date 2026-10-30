@@ -7,6 +7,7 @@
 //   ST_URL=http://127.0.0.1:4317 node scripts/smoke.mjs
 
 import { createServer } from 'node:http'
+import { unlinkSync } from 'node:fs'
 
 const BASE = process.env.ST_URL ?? 'http://127.0.0.1:4317'
 const MOCK_PORT = Number(process.env.MOCK_PORT ?? 4566)
@@ -137,8 +138,69 @@ const noProvider = await call('/api/polish', {
 })
 check('missing provider is a 400 with a message', noProvider.status === 400 && /provider/i.test(noProvider.body?.error ?? ''))
 
+// Style analyst: evidence rule, then a real run through the same provider path.
+await call('/api/config', {
+  method: 'PATCH',
+  body: JSON.stringify({
+    activeProvider: 'openai',
+    model: 'gpt-4.1-mini',
+    providerId: 'openai',
+    endpoint: `http://127.0.0.1:${MOCK_PORT}/v1`
+  })
+})
+
+const tooFew = await call('/api/style/run', {
+  method: 'POST',
+  body: JSON.stringify({
+    app: 'Probe',
+    context: 'test',
+    pairs: [
+      { id: 'a', where: 'x', original: 'Start', rewrite: 'Begin' },
+      { id: 'b', where: 'y', original: 'Stop', rewrite: 'Halt' }
+    ]
+  })
+})
+check('style analyst refuses fewer than three pairs', tooFew.status === 400 && tooFew.body?.code === 'not-enough-pairs')
+
+const styleRun = await call('/api/style/run', {
+  method: 'POST',
+  body: JSON.stringify({
+    app: 'Smoke Probe',
+    context: 'settings panel',
+    pairs: [
+      { id: 'a', where: 'x', original: 'Start recording', rewrite: 'Begin capture' },
+      { id: 'b', where: 'y', original: 'Stop recording', rewrite: 'Stop' },
+      { id: 'c', where: 'z', original: 'Save changes', rewrite: 'Save' }
+    ]
+  })
+})
+check(
+  'style analyst returns a profile and saves it',
+  styleRun.status === 200 && typeof styleRun.body?.markdown === 'string' && /profiles/.test(styleRun.body?.path ?? '')
+)
+check('style profile is a markdown document', /^#|^---/.test((styleRun.body?.markdown ?? '').trim()))
+
+const listing = await call('/api/profiles')
+check(
+  'saved profile shows up in the listing',
+  listing.status === 200 && (listing.body?.files ?? []).some((file) => file.name === styleRun.body?.name)
+)
+
+const oauth = await call('/api/oauth', {})
+check(
+  'oauth advertises the providers it can actually run',
+  typeof oauth.body === 'object' && !Array.isArray(oauth.body)
+)
+
 // Restore.
 await call('/api/keys/openai', { method: 'DELETE' })
+if (styleRun.body?.path) {
+  try {
+    unlinkSync(styleRun.body.path)
+  } catch {
+    /* already gone */
+  }
+}
 await call('/api/config', {
   method: 'PATCH',
   body: JSON.stringify({
