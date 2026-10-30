@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
+import { useDialog } from '../lib/useDialog'
 import {
   ArrowClockwise,
   CheckCircle,
@@ -189,6 +190,8 @@ export function StylePanel({
   onToast,
   onUsage
 }: Props) {
+  const titleId = useId()
+  const dialogRef = useDialog<HTMLDivElement>(open, onClose)
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<StyleProfile | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -271,13 +274,20 @@ export function StylePanel({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10">
-      <div className="w-full max-w-[820px] rounded-[14px] border border-line bg-ink-900 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+    <div className="st-scrim fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="st-dialog w-full max-w-[820px] rounded-[14px] border border-line bg-ink-900 shadow-[0_30px_80px_rgba(0,0,0,0.6)] outline-none"
+      >
         <div className="flex items-start justify-between border-b border-line px-5 py-3">
           <div className="flex items-start gap-2.5">
             <GraduationCap size={16} className="mt-0.5 text-fg-dim" />
             <div>
-              <h2 className="text-[13.5px] font-semibold text-fg">Style analyst</h2>
+              <h2 id={titleId} className="text-[13.5px] font-semibold text-fg">Style analyst</h2>
               <p className="mt-0.5 text-[11.5px] text-fg-faint">
                 Compares each shipped string with your rewrite and writes down the difference as rules.
               </p>

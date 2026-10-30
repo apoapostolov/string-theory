@@ -68,8 +68,10 @@ export function TopBar({
         <input
           value={query}
           onChange={(event) => onQuery(event.target.value)}
+          aria-label="Find a string by id, text or screen"
+          type="search"
           placeholder="Find id, text or screen"
-          className="h-8 w-full rounded-lg border border-line bg-ink-850 pr-7 pl-7.5 text-[12.5px] text-fg outline-none transition-colors placeholder:text-fg-faint/70 focus:border-line-strong"
+          className="h-8 w-full rounded-lg border border-line-input bg-ink-850 pr-7 pl-7.5 text-[12.5px] text-fg outline-none transition-colors placeholder:text-fg-faint/70 focus:border-fg-dim"
         />
         {query ? (
           <button
@@ -87,6 +89,7 @@ export function TopBar({
         type="button"
         onClick={onSettings}
         title="AI provider, budget and measurement"
+        aria-label={`AI provider: ${provider ? provider.label : 'none connected'}. Open settings.`}
         className="flex h-8 shrink-0 items-center gap-2 rounded-lg border border-line bg-ink-850 px-2.5 text-[11.5px] text-fg-dim transition-colors hover:border-line-strong hover:text-fg"
       >
         <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
@@ -130,7 +133,7 @@ type FilterBarProps = {
 
 export function FilterBar({ filter, onFilter, counts, fitCounts, total, showAllHint }: FilterBarProps) {
   return (
-    <div className="flex h-10 shrink-0 items-center gap-1 border-b border-line px-3">
+    <div role="group" aria-label="Filter strings" className="flex h-10 shrink-0 items-center gap-1 border-b border-line px-3">
       {FILTERS.map((entry) => {
         const active = filter === entry.id
         const value =
@@ -140,6 +143,7 @@ export function FilterBar({ filter, onFilter, counts, fitCounts, total, showAllH
             key={entry.id}
             type="button"
             onClick={() => onFilter(entry.id)}
+            aria-pressed={active}
             className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] transition-colors ${
               active ? 'bg-ink-800 text-fg' : 'text-fg-dim hover:bg-ink-900 hover:text-fg'
             }`}
@@ -155,7 +159,7 @@ export function FilterBar({ filter, onFilter, counts, fitCounts, total, showAllH
           </button>
         )
       })}
-      <div className="ml-auto flex items-center gap-3 pr-1 font-mono text-[10.5px] text-fg-faint">
+      <div className="st-num ml-auto flex items-center gap-3 pr-1 font-mono text-[10.5px] text-fg-faint">
         {showAllHint ? <span>{showAllHint}</span> : null}
         <span>
           {counts.done} / {total} completed

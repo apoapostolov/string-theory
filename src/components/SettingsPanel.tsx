@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { useDialog } from '../lib/useDialog'
 import {
   ArrowClockwise,
   Check,
@@ -189,6 +190,8 @@ export function SettingsPanel({
   const usage = payload?.usage
   const options = models.length ? models : (active?.models ?? [])
   const modelValue = config?.model ?? ''
+  const titleId = useId()
+  const dialogRef = useDialog<HTMLElement>(open, onClose)
 
   return (
     <>
@@ -199,14 +202,20 @@ export function SettingsPanel({
         }`}
       />
       <aside
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         aria-hidden={!open}
-        className={`fixed top-0 right-0 z-50 flex h-full w-[min(560px,100vw)] flex-col border-l border-line bg-ink-925 shadow-[-24px_0_60px_rgba(0,0,0,0.55)] transition-transform duration-200 ${
+        inert={!open}
+        tabIndex={-1}
+        className={`fixed top-0 right-0 z-50 flex h-full w-[min(560px,100vw)] flex-col border-l border-line bg-ink-925 shadow-[-24px_0_60px_rgba(0,0,0,0.55)] outline-none transition-transform duration-200 ease-[var(--ease-out)] ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-line px-5">
           <div>
-            <h2 className="text-[13.5px] font-semibold text-fg">Settings</h2>
+            <h2 id={titleId} className="text-[13.5px] font-semibold text-fg">Settings</h2>
             <p className="text-[11px] text-fg-faint">Provider credentials, pass defaults, budgets</p>
           </div>
           <Button size="sm" variant="quiet" onClick={onClose} className="h-8 w-8">

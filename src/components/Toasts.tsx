@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { CheckCircle, WarningCircle } from '@phosphor-icons/react'
+import { CheckCircle, WarningCircle, X } from '@phosphor-icons/react'
 
 export type Toast = {
   id: number
@@ -20,8 +20,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
 
   return (
     <div
-      role="status"
-      className={`pointer-events-auto flex max-w-[420px] items-start gap-2 rounded-[10px] border px-3 py-2.5 text-[12px] leading-relaxed shadow-[0_16px_40px_rgba(0,0,0,0.5)] ${
+      className={`st-toast pointer-events-auto flex max-w-[420px] items-start gap-2 rounded-[10px] border px-3 py-2.5 text-[12px] leading-relaxed shadow-[0_16px_40px_rgba(0,0,0,0.5)] ${
         toast.kind === 'error'
           ? 'border-over/35 bg-[#1d1113] text-fg'
           : 'border-line bg-ink-800 text-fg'
@@ -36,10 +35,11 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       <button
         type="button"
         onClick={() => onDismiss(toast.id)}
-        aria-label="Dismiss"
-        className="shrink-0 text-[11px] text-fg-faint hover:text-fg"
+        aria-label="Dismiss notification"
+        title="Dismiss"
+        className="-mt-1 -mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-fg-faint transition-colors hover:bg-ink-750 hover:text-fg"
       >
-        close
+        <X size={11} weight="bold" />
       </button>
     </div>
   )
@@ -47,7 +47,13 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
 
 export function Toasts({ toasts, onDismiss }: Props) {
   return (
-    <div className="pointer-events-none fixed bottom-16 left-4 z-[60] flex flex-col items-start gap-2">
+    <div
+      role="region"
+      aria-label="Notifications"
+      aria-live="polite"
+      aria-atomic="false"
+      className="pointer-events-none fixed bottom-16 left-4 z-[60] flex flex-col items-start gap-2"
+    >
       {toasts.map((toast) => (
         <ToastCard key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}

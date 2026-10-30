@@ -60,15 +60,18 @@ function StateGlyph({ state, onCycle, onReset }: { state: RowState; onCycle: () 
         event.preventDefault()
         onReset()
       }}
+      data-state={state}
       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors hover:bg-ink-800 ${tone}`}
     >
-      {state === 'done' ? (
-        <CheckCircle size={16} weight="fill" />
-      ) : state === 'wip' ? (
-        <CircleHalf size={16} weight="bold" />
-      ) : (
-        <Circle size={15} />
-      )}
+      <span key={state} className="st-pop flex items-center justify-center">
+        {state === 'done' ? (
+          <CheckCircle size={16} weight="fill" />
+        ) : state === 'wip' ? (
+          <CircleHalf size={16} weight="bold" />
+        ) : (
+          <Circle size={15} />
+        )}
+      </span>
     </button>
   )
 }
@@ -120,13 +123,25 @@ function PassControl({
         onClick={() => setOpen((value) => !value)}
         disabled={busy}
         aria-label="Choose pass"
+        aria-haspopup="menu"
+        aria-expanded={open}
         title={connected ? 'Choose the pass' : 'Passes need an AI provider'}
         className="flex w-6 items-center justify-center rounded-r-lg text-fg-faint transition-colors hover:bg-ink-750 hover:text-fg disabled:pointer-events-none disabled:opacity-40"
       >
         <CaretDown size={10} weight="bold" />
       </button>
       {open ? (
-        <div className="absolute top-full right-0 z-30 mt-1 w-56 overflow-hidden rounded-[10px] border border-line bg-ink-800 py-1 shadow-[0_18px_40px_rgba(0,0,0,0.6)]">
+        <div
+          role="menu"
+          aria-label="Choose the pass"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.stopPropagation()
+              setOpen(false)
+            }
+          }}
+          className="st-dialog absolute top-full right-0 z-30 mt-1 w-56 overflow-hidden rounded-[10px] border border-line bg-ink-800 py-1 shadow-[0_18px_40px_rgba(0,0,0,0.6)]"
+        >
           {!connected ? (
             <p className="border-b border-line px-3 py-1.5 text-[10.5px] leading-snug text-fg-faint">
               Connect an AI provider to run a pass.
@@ -136,6 +151,7 @@ function PassControl({
             <button
               key={mode.id}
               type="button"
+              role="menuitem"
               disabled={!connected}
               onClick={() => {
                 setOpen(false)
@@ -206,14 +222,19 @@ function RowShell({
   return (
     <div
       id={`row-${row.key}`}
-      className={`${BORDER[fit]} border-b border-b-line/70 transition-colors hover:bg-ink-900/70`}
+      role="listitem"
+      aria-labelledby={`row-label-${row.key}`}
+      aria-describedby={`row-verdict-${row.key}`}
+      className={`st-row ${BORDER[fit]}`}
     >
       <div className="flex items-center gap-2.5 px-3 pt-2">
         <StateGlyph state={row.state} onCycle={() => onCycleState(row.key)} onReset={() => onResetState(row.key)} />
 
         <HoverInfo content={info} className="min-w-0 flex-1">
-          <span className="flex items-baseline gap-1.5 truncate font-mono text-[11px]">
-            <span className="truncate text-fg-faint hover:text-fg-dim">{row.id}</span>
+          <span className="st-num flex items-baseline gap-1.5 truncate font-mono text-[11px]">
+            <span id={`row-label-${row.key}`} className="truncate text-fg-faint hover:text-fg-dim">
+              {row.id}
+            </span>
             <span className="shrink-0 text-fg-faint/50">·</span>
             <span className="shrink-0 text-[10.5px] text-fg-faint">
               {row.maxPxPerLine ? `${px(row.maxPxPerLine)} px/line` : 'no px limit'}
@@ -273,6 +294,9 @@ function RowShell({
               value={row.text}
               rows={1}
               spellCheck
+              aria-label={`Rewrite ${row.id}`}
+              aria-invalid={fit === 'over' || undefined}
+              aria-describedby={`row-verdict-${row.key}`}
               onChange={(event) => onEdit(row.key, event.target.value)}
               onKeyDown={(event) => {
                 if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -285,8 +309,8 @@ function RowShell({
                 }
               }}
               placeholder="Rewrite this string in your own words"
-              className={`st-input block min-w-0 flex-1 rounded-lg border bg-ink-850/80 px-3 py-2 text-[13.5px] leading-snug text-fg outline-none transition-colors placeholder:text-fg-faint/70 focus:border-line-strong focus:bg-ink-850 ${
-                fit === 'over' ? 'border-over/45' : fit === 'near' ? 'border-near/35' : 'border-line'
+              className={`st-input block min-w-0 flex-1 rounded-lg border bg-ink-850/80 px-3 py-2 text-[13.5px] leading-snug text-fg outline-none transition-colors placeholder:text-fg-faint/70 focus:border-fg-dim focus:bg-ink-850 ${
+                fit === 'over' ? 'border-over/70' : 'border-line-input'
               }`}
             />
             <PassControl
@@ -349,6 +373,14 @@ function RowShell({
               ) : null}
             </span>
           </div>
+          <p id={`row-verdict-${row.key}`} className="sr-only">
+            {row.where ? `Shown at ${row.where}. ` : ''}
+            {`${wrapFit.maxLines === 1 ? 'One line' : `${wrapFit.maxLines} lines`} allowed, needs ${wrapFit.lines}. `}
+            {`Widest line ${Math.round(afterPx)} of ${row.maxPxPerLine ?? 'no'} pixels.`}
+            {wrapFit.leak
+              ? ` Last line is an orphan, filling ${Math.round(wrapFit.lastRatio * 100)} percent of the box.`
+              : ''}
+          </p>
         </div>
       </div>
 

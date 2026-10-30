@@ -776,7 +776,7 @@ export default function App() {
         {!hasFile ? (
           <EmptyState onOpen={pickFile} onSample={loadSample} onFormat={() => setSpecOpen(true)} />
         ) : visible.length ? (
-          <div className="pb-6">
+          <div role="list" aria-label="Strings in this file" className="st-rows pb-16">
             {visible.map((entry) => (
               <StringRow
                 key={entry.row.key}

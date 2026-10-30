@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { useDialog } from '../lib/useDialog'
 import { Check, Copy, X } from '@phosphor-icons/react'
 
 type Props = {
@@ -85,6 +86,8 @@ function Table({ rows }: { rows: Array<[string, string, string, string]> }) {
 
 export function FormatSpec({ open, onClose }: Props) {
   const [copied, setCopied] = useState(false)
+  const titleId = useId()
+  const dialogRef = useDialog<HTMLDivElement>(open, onClose)
   if (!open) return null
 
   async function copyExample() {
@@ -98,11 +101,18 @@ export function FormatSpec({ open, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10">
-      <div className="w-full max-w-[780px] rounded-[14px] border border-line bg-ink-900 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+    <div className="st-scrim fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-10">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="st-dialog w-full max-w-[780px] rounded-[14px] border border-line bg-ink-900 shadow-[0_30px_80px_rgba(0,0,0,0.6)] outline-none"
+      >
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <div>
-            <h2 className="text-[13.5px] font-semibold text-fg">Export format</h2>
+            <h2 id={titleId} className="text-[13.5px] font-semibold text-fg">Export format</h2>
             <p className="font-mono text-[10.5px] text-fg-faint">string-theory/1 · one JSON file per application</p>
           </div>
           <div className="flex items-center gap-1.5">

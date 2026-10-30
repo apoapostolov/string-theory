@@ -79,6 +79,17 @@ Providers are the usual set: OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRou
 | --- | --- |
 | ![Close to limit filter showing an orphan last line](docs/screenshot-wrap.png) | ![Source picker listing inbox files with progress](docs/screenshot-sources.png) |
 
+## Accessibility
+
+The list is the product, so it is built to be read rather than looked at:
+
+- Every verdict pairs its colour with a number and a word: `+32 over`, `137 / 150`, `orphan 23%`. Nothing is communicated by hue alone.
+- Meters are progress bars with a spoken value, and each row carries a screen-reader sentence with its budget, the lines it needs and whether the last line is stranded.
+- `Tab` reaches the source state glyph, the input, the pass control and the revert button in reading order. The row being edited lights its edge through `:focus-within`.
+- Dialogs trap focus, close on `Escape` and hand focus back to the control that opened them. A closed settings drawer is `inert`, so it never catches a stray tab.
+- Reduced motion removes the entrance animations, the meter easing and the shimmer, and keeps the state changes instant.
+- Contrast is computed, not eyeballed: `npm run check:contrast` checks 17 text and border pairs against WCAG 2.1 AA, and the build is expected to keep all of them passing.
+
 ## Quick start
 
 Node 22 or newer.
@@ -133,6 +144,7 @@ Keys are encrypted with AES-256-GCM under `data/master.key` and never returned t
 
 ```powershell
 npm run build                        # tsc --noEmit && vite build
+npm run check:contrast               # WCAG ratios for every token pair
 npm run smoke                        # 19 end-to-end checks; needs the server up
 node scripts/validate-export.mjs samples/demo.strings.json
 ```

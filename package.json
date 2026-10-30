@@ -31,7 +31,8 @@
     "build": "tsc --noEmit && vite build",
     "start": "node server/index.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:contrast": "node scripts/check-contrast.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

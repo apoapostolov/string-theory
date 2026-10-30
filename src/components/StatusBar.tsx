@@ -21,25 +21,35 @@ export function StatusBar({ done, wip, total, dirty, over, near, onCopy, onExpor
   return (
     <footer className="flex h-12 shrink-0 items-center gap-4 border-t border-line bg-ink-925 px-4">
       <div className="flex items-center gap-2.5">
-        <div className="relative h-1 w-28 overflow-hidden rounded-full bg-ink-700">
+        <div
+          role="progressbar"
+          aria-label="Strings completed"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={pct}
+          aria-valuetext={`${done} of ${total} strings completed`}
+          className="relative h-1 w-28 overflow-hidden rounded-full bg-ink-700"
+        >
           <div
-            className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-300 ${pct === 100 ? 'bg-ok' : 'bg-fg-dim'}`}
-            style={{ width: `${pct}%` }}
+            className={`st-meter absolute inset-y-0 left-0 w-full rounded-full ${pct === 100 ? 'bg-ok' : 'bg-fg-dim'}`}
+            style={{ transform: `scaleX(${pct / 100})` }}
           />
         </div>
-        <span className="font-mono text-[11px] text-fg-dim tabular-nums">
+        <span aria-live="polite" aria-atomic="true" className="st-num font-mono text-[11px] text-fg-dim">
           {done} / {total} completed
         </span>
-        {wip > 0 ? <span className="font-mono text-[11px] text-near">{wip} in progress</span> : null}
+        {wip > 0 ? (
+          <span className="st-num font-mono text-[11px] text-near">{wip} in progress</span>
+        ) : null}
       </div>
 
       {over > 0 ? (
         <span className="flex items-center gap-1 font-mono text-[11px] text-over">
           <WarningCircle size={12} weight="fill" />
-          {over} will wrap
+          <span className="st-num">{over} will wrap</span>
         </span>
       ) : null}
-      {near > 0 ? <span className="font-mono text-[11px] text-near">{near} close to limit</span> : null}
+      {near > 0 ? <span className="st-num font-mono text-[11px] text-near">{near} close to limit</span> : null}
       {over === 0 && near === 0 && total > 0 ? (
         <span className="font-mono text-[11px] text-ok">all within budget</span>
       ) : null}

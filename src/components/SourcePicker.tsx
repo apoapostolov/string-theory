@@ -142,6 +142,8 @@ export function SourcePicker({
         type="button"
         onClick={() => setOpen((value) => !value)}
         title="Switch source"
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className={`flex min-w-0 max-w-[380px] items-center gap-2 rounded-lg border px-2 py-1 transition-colors ${
           open ? 'border-line-strong bg-ink-850' : 'border-transparent hover:border-line hover:bg-ink-900'
         }`}
