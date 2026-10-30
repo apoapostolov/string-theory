@@ -521,7 +521,7 @@ export default function App() {
   const providerReady = Boolean(provider && (oauthReady || keyReady))
 
   const polish = useCallback(
-    async (key: string, mode?: ModeId) => {
+    async (key: string, mode?: ModeId, voice?: string) => {
       const row = rowsRef.current.find((entry) => entry.key === key)
       const current = metaRef.current
       if (!row || !current) return
@@ -549,6 +549,8 @@ export default function App() {
             surface: current.surface ?? 'app'
           },
           mode,
+          voice,
+          useProfile: payload?.config.useProfile ?? true,
           app: current.app,
           font: row.font ?? current.font
         })
@@ -564,7 +566,7 @@ export default function App() {
         pushToast('error', message)
       }
     },
-    [providerReady, pushToast]
+    [providerReady, pushToast, payload?.config.useProfile]
   )
 
   // ------------------------------------------------------------ derived
@@ -829,6 +831,15 @@ export default function App() {
     [pushToast, scanInbox]
   )
 
+  /**
+   * The profile switch belongs to the pass, not to one run: turning it off stops
+   * the profile riding along with every later humanize pass.
+   */
+  const toggleProfile = useCallback(() => {
+    const next = !(payload?.config.useProfile ?? true)
+    void patchConfig({ useProfile: next })
+  }, [patchConfig, payload?.config.useProfile])
+
   const refreshPayload = useCallback(async () => {
     try {
       setPayload(await api.config())
@@ -992,6 +1003,12 @@ export default function App() {
                         onFilterTag={toggleTag}
                         even={index % 2 === 1}
                         docs={isDocs}
+                        voices={payload?.voices ?? []}
+                        voice={payload?.config.humanizeVoice ?? 'humanizer'}
+                        useProfile={payload?.config.useProfile ?? true}
+                        profileReady={Boolean(payload?.voiceProfile?.present)}
+                        profilePath={payload?.voiceProfile?.path ?? ''}
+                        onToggleProfile={toggleProfile}
                         setsize={visible.length}
                         posinset={index + 1}
                       />

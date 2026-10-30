@@ -142,7 +142,11 @@ A second rail groups the strings by what they do. Every string carries one or mo
 Every AI action is per string and per click. There is no "polish all", because an unreviewed batch defeats the point of rewriting copy in your own words.
 
 - **Passes.** The control beside the input runs a Grammar, Style or Fit pass on that one string. The prompt carries the string, its screen, the measured width, the line budget and the wrap law, and the answer is measured again like any manual edit.
+- **Voices.** The same menu carries a Humanize group: five editorial methods — Humanizer, Product strings, Short pass, Simple English, Prose — each one a different way of rewriting the same string, all of them subtraction-only. Every voice gets the same budget and placeholder rules as the passes, so a humanized string still has to fit its box.
+- **Apostol's profile.** The checkbox under the voices applies a writing profile to whichever method you pick, and it is on until you turn it off. The profile is read from a file on this machine at request time — here, `C:/git/self-profile/profile/operational.md`, settable in Settings → Workspace — and its text is never copied into this project or sent anywhere except inside the prompt you asked for. If the file is missing the checkbox says so and the pass runs without it.
 - **Style analyst.** After you have marked rewrites completed, the analyst compares each shipped string with your version and writes down the differences as rules: voice, sentence shape, word swaps, length discipline, punctuation, and what you never write. It needs three pairs, samples evenly across a large file, and saves a markdown profile per app. The file is shaped as a skill reference, so pointing the style folder at a writing skill's `references/` directory lets a writing agent load your house style with the skill.
+
+![The pass menu: three passes, five voices, and the profile switch](docs/app-voices.png)
 
 ![The style analyst reading completed rewrites](docs/screenshot-style.png)
 

@@ -23,7 +23,7 @@ type Props = {
   warnRatio: number
   canPolish: boolean
   onEdit: (key: string, text: string) => void
-  onPolish: (key: string, mode?: ModeId) => void
+  onPolish: (key: string, mode?: ModeId, voice?: string) => void
   onRevert: (key: string) => void
   onCycleState: (key: string) => void
   onResetState: (key: string) => void
@@ -38,6 +38,13 @@ type Props = {
   posinset?: number
   /** True for a README or changelog row: prose, with no layout to fit. */
   docs?: boolean
+  /** The voices offered in the pass menu, and the profile switch beside them. */
+  voices?: Array<{ id: string; label: string; blurb: string; applies: 'app' | 'docs' | 'both' }>
+  voice?: string
+  useProfile?: boolean
+  profileReady?: boolean
+  profilePath?: string
+  onToggleProfile?: () => void
 }
 
 function RowShell({
@@ -59,7 +66,13 @@ function RowShell({
   even = false,
   setsize,
   posinset,
-  docs = false
+  docs = false,
+  voices,
+  voice,
+  useProfile,
+  profileReady,
+  profilePath,
+  onToggleProfile
 }: Props) {
   if (docs) {
     return (
@@ -67,7 +80,13 @@ function RowShell({
         row={row}
         canPolish={canPolish}
         onEdit={onEdit}
-        onPolish={(key, mode) => onPolish(key, mode as ModeId | undefined)}
+        onPolish={onPolish}
+        voices={voices}
+        voice={voice}
+        useProfile={useProfile}
+        profileReady={profileReady}
+        profilePath={profilePath}
+        onToggleProfile={onToggleProfile}
         onRevert={onRevert}
         onCycleState={onCycleState}
         onResetState={onResetState}
@@ -128,6 +147,17 @@ function RowShell({
       aria-describedby={`row-verdict-${row.key}`}
       className={`st-row ${BORDER[fit]}`}
     >
+      {changed ? (
+        <button
+          type="button"
+          aria-label="Revert to source"
+          title="Revert to source (Esc)"
+          onClick={() => onRevert(row.key)}
+          className="st-revert absolute top-2 left-1 flex h-6 w-6 items-center justify-center rounded-md text-fg-faint transition-colors hover:bg-ink-800 hover:text-fg"
+        >
+          <ArrowCounterClockwise size={12} />
+        </button>
+      ) : null}
       <div className="grid grid-cols-1 gap-x-7 gap-y-2 pr-4 pb-3 pl-3 pt-2 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
         {/* Left: the glyph, the identity line and the source. Nothing above it. */}
         <div className="flex min-w-0 items-start gap-2.5">
@@ -220,19 +250,15 @@ function RowShell({
             <PassControl
               busy={row.busy}
               connected={canPolish}
+              voices={(voices ?? []).filter((entry) => entry.applies !== 'docs')}
+              voice={voice}
+              useProfile={useProfile}
+              profileReady={profileReady}
+              profilePath={profilePath}
+              onToggleProfile={onToggleProfile}
               onRun={() => onPolish(row.key)}
-              onPick={(mode) => onPolish(row.key, mode)}
+              onPick={(mode, picked) => onPolish(row.key, mode, picked)}
             />
-            <button
-              type="button"
-              aria-label="Revert to source"
-              title="Revert to source"
-              onClick={() => onRevert(row.key)}
-              disabled={!changed}
-              className="inline-flex w-8 shrink-0 items-center justify-center self-stretch rounded-lg border border-transparent text-fg-faint transition-colors hover:border-line hover:bg-ink-800 hover:text-fg disabled:pointer-events-none disabled:opacity-20"
-            >
-              <ArrowCounterClockwise size={13} />
-            </button>
           </div>
 
           {row.busy || row.error ? (

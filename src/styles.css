@@ -163,6 +163,10 @@
 .st-row {
   position: relative;
   background: transparent;
+  /* A gutter down the left of every row, outside the row's own content, where the
+     revert control lives when a string has been changed. Reserved at all times so
+     a row does not jump sideways the moment it is edited. */
+  padding-left: 28px;
 }
 
 .st-row[data-even='true'] {

@@ -28,6 +28,9 @@ export type PolishRequest = {
     surface?: 'app' | 'docs'
   }
   mode?: ModeId
+  /** humanize only: which editorial method, and whether the profile rides along. */
+  voice?: string
+  useProfile?: boolean
   app?: string
   font?: { family: string; size: number; weight: number; letterSpacing: number }
   providerId?: string

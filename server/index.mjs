@@ -24,6 +24,8 @@ import {
 import { cacheSnapshot, dropProvider, ensureModels, refreshModels } from './models-cache.mjs'
 import { estimateCost } from './pricing.mjs'
 import { buildPrompt, getMode, modeList, sanitiseOutput } from './polish.mjs'
+import { voiceProfile, voiceProfileSummary } from './voice-profile.mjs'
+import { voiceList } from '../shared/voices.mjs'
 import {
   buildStylePrompt,
   listProfiles,
@@ -127,7 +129,9 @@ function configPayload() {
     inbox: { dir: resolveInbox(config.inboxDir) },
     profiles: { dir: stylesDir() },
     oauth: { providers: publicOAuthProviders(), sessions: oauthHints() },
-    models: cacheSnapshot(getConfig().modelsTtlHours)
+    models: cacheSnapshot(getConfig().modelsTtlHours),
+    voices: voiceList(),
+    voiceProfile: voiceProfileSummary(getConfig().profilePath)
   }
 }
 
@@ -277,13 +281,20 @@ async function handlePolish(body) {
   const { provider, key, endpoint, model: configModel, auth } = await resolveCredentials(body.providerId)
   const model = String(body.model || configModel || provider.models[0])
   const mode = body.mode ?? config.mode ?? 'style'
+  // A humanize pass carries a voice, and the operator's profile rides along
+  // unless it is switched off. The profile body never leaves this process except
+  // inside the prompt.
+  const voice = body.voice ?? config.humanizeVoice ?? 'humanizer'
+  const useProfile = body.useProfile ?? config.useProfile ?? true
   const prompt = buildPrompt({
     item,
     mode,
     app: body.app,
     font: body.font,
     contextLine: config.contextLine,
-    extraPrompt: config.polishPrompt
+    extraPrompt: config.polishPrompt,
+    voice,
+    profile: mode === 'humanize' && useProfile ? voiceProfile(config.profilePath).text : ''
   })
 
   const result = await chat(provider, {

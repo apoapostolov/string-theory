@@ -32,7 +32,12 @@ const CONFIG_DEFAULTS = {
   // instead of resetting to whichever model happens to be first in the catalogue.
   modelByProvider: {},
   // How long a fetched model catalogue stays fresh before it is fetched again.
-  modelsTtlHours: 24
+  modelsTtlHours: 24,
+  /** Which voice the humanize pass uses, and whether the operator's profile rides along. */
+  humanizeVoice: 'humanizer',
+  useProfile: true,
+  /** Empty means the default profile location; the body is never stored here. */
+  profilePath: ''
 }
 
 function ensureData() {

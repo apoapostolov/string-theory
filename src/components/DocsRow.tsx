@@ -9,7 +9,7 @@ type Props = {
   row: Row
   canPolish: boolean
   onEdit: (key: string, text: string) => void
-  onPolish: (key: string, mode?: ModeId) => void
+  onPolish: (key: string, mode?: ModeId, voice?: string) => void
   onRevert: (key: string) => void
   onCycleState: (key: string) => void
   onResetState: (key: string) => void
@@ -20,6 +20,12 @@ type Props = {
   even?: boolean
   setsize?: number
   posinset?: number
+  voices?: Array<{ id: string; label: string; blurb: string; applies: 'app' | 'docs' | 'both' }>
+  voice?: string
+  useProfile?: boolean
+  profileReady?: boolean
+  profilePath?: string
+  onToggleProfile?: () => void
 }
 
 const PROSE_MODES = MODES.filter((mode) => mode.id !== 'fit')
@@ -51,7 +57,13 @@ function DocsShell({
   onFilterTag,
   even = false,
   setsize,
-  posinset
+  posinset,
+  voices,
+  voice,
+  useProfile,
+  profileReady,
+  profilePath,
+  onToggleProfile
 }: Props) {
   const changed = row.text !== row.source
   const chars = row.text.length
@@ -70,6 +82,17 @@ function DocsShell({
       aria-labelledby={`row-label-${row.key}`}
       className={`st-row border-l-[3px] border-l-transparent ${changed ? 'st-row-docs-changed' : ''}`}
     >
+      {changed ? (
+        <button
+          type="button"
+          aria-label="Revert to source"
+          title="Revert to source (Esc)"
+          onClick={() => onRevert(row.key)}
+          className="st-revert absolute top-2 left-1 flex h-6 w-6 items-center justify-center rounded-md text-fg-faint transition-colors hover:bg-ink-800 hover:text-fg"
+        >
+          <ArrowCounterClockwise size={12} />
+        </button>
+      ) : null}
       <div className="flex items-start gap-2.5 px-3 pt-2">
         <StateGlyph state={row.state} onCycle={() => onCycleState(row.key)} onReset={() => onResetState(row.key)} />
 
@@ -108,19 +131,15 @@ function DocsShell({
             busy={row.busy}
             connected={canPolish}
             modes={PROSE_MODES}
+            voices={(voices ?? []).filter((entry) => entry.applies !== 'app')}
+            voice={voice}
+            useProfile={useProfile}
+            profileReady={profileReady}
+            profilePath={profilePath}
+            onToggleProfile={onToggleProfile}
             onRun={() => onPolish(row.key)}
-            onPick={(mode) => onPolish(row.key, mode)}
+            onPick={(mode, picked) => onPolish(row.key, mode, picked)}
           />
-          <button
-            type="button"
-            aria-label="Revert to source"
-            title="Revert to source"
-            onClick={() => onRevert(row.key)}
-            disabled={!changed}
-            className="inline-flex w-8 items-center justify-center rounded-lg border border-transparent text-fg-faint transition-colors hover:border-line hover:bg-ink-800 hover:text-fg disabled:pointer-events-none disabled:opacity-20"
-          >
-            <ArrowCounterClockwise size={13} />
-          </button>
         </div>
       </div>
 

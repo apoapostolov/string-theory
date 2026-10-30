@@ -206,7 +206,16 @@ export type UsageSummary = {
   }>
 }
 
-export type ModeId = 'grammar' | 'style' | 'fit'
+export type ModeId = 'grammar' | 'style' | 'fit' | 'humanize'
+
+/** One of the editorial methods the humanize pass can apply. */
+export type Voice = {
+  id: string
+  label: string
+  blurb: string
+  /** Which surface the voice was written for. */
+  applies: 'app' | 'docs' | 'both'
+}
 
 export type Config = {
   activeProvider: string | null
@@ -225,6 +234,10 @@ export type Config = {
   modelsTtlHours: number
   /** The model last used with each provider, restored when it is applied again. */
   modelByProvider?: Record<string, string>
+  /** The voice the humanize pass runs in, and whether the operator's profile joins it. */
+  humanizeVoice: string
+  useProfile: boolean
+  profilePath: string
 }
 
 export type OAuthProvider = {
@@ -303,6 +316,9 @@ export type ConfigPayload = {
   inbox: { dir: string }
   profiles: { dir: string }
   oauth: { providers: OAuthProvider[]; sessions: Record<string, OAuthSession> }
+  voices?: Voice[]
+  /** Where the profile was looked for and whether it was found. Never its body. */
+  voiceProfile?: { path: string; present: boolean; chars: number }
 }
 
 export type Fit = 'ok' | 'near' | 'over' | 'none'

@@ -546,6 +546,20 @@ export function SettingsPanel({
                         onCommit={(value) => onPatch({ modelsTtlHours: Math.max(0, Number(value) || 0) })}
                       />
                     </Field>
+                    <Field
+                      label="Voice profile (path)"
+                      hint={
+                        payload?.voiceProfile?.present
+                          ? `Found: ${payload.voiceProfile.chars.toLocaleString()} characters. Read at request time; the file is never copied into this project. Leave empty for the default location.`
+                          : `Not found at ${payload?.voiceProfile?.path || 'the default location'}. The humanize pass runs without a profile, and the checkbox is disabled.`
+                      }
+                    >
+                      <DraftInput
+                        value={config?.profilePath ?? ''}
+                        placeholder="C:/git/self-profile/profile/operational.md"
+                        onCommit={(value) => onPatch({ profilePath: String(value).trim() })}
+                      />
+                    </Field>
                   </div>
                   {usage && usage.day.unpriced > 0 ? (
                     <p className="flex items-start gap-1.5 text-[10.5px] leading-snug text-near">

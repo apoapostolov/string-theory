@@ -138,6 +138,19 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - `patchConfig` remembers the outgoing pair in `modelByProvider` before applying a change, and the incoming one after, so switching providers restores the model last used with each instead of the first entry in its catalogue.
 - The header chip names the pair — `Provider · model · $spend today` — and the per-row Polish button inherits it, because the client sends no model and the server resolves `config.model`. Prove that wiring by setting a bogus model and reading the provider's rejection, never by assuming.
 
+## Voices and the profile
+
+- `shared/voices.mjs` is the single vocabulary: the menu, the prompt and the tests read the same list. A voice cannot exist in the UI without the prompt knowing what it means, and the menu never receives an instruction field.
+- Every voice is subtraction-only. The shared `VOICE_RULES` block forbids inventing experience, opinions, numbers or specifics, and forbids weakening force-bearing words; do not add a voice that needs to invent detail.
+- The profile is private author material: it is read from disk at request time by `server/voice-profile.mjs`, capped to a paragraph boundary, and never committed, logged, cached in the browser, or copied into a fixture. A missing file is a supported state, not an error.
+- `modeList()` entries carry no `id` of their own. `buildPrompt` resolves `modeId` itself; reading `setting.id` directly gave `undefined` and silently turned a grammar pass on a document into a general rewrite.
+- A voice's `applies` field decides where it is offered: `app` voices on string rows, `docs` voices on prose rows, `both` in both menus.
+
+## The revert control
+
+- Undo lives in a 28px gutter down the left of every row, outside the row's content, and appears only when `text !== source`. The gutter is reserved at all times so a row never jumps sideways the moment it is edited.
+- `Esc` in the textarea does the same thing, and the control is a plain button with `aria-label="Revert to source"` so it is reachable without a mouse.
+
 ## Model catalogues
 
 - `server/models-cache.mjs` owns the cache: `data/models-cache.json`, one entry per provider with the models, the time it was fetched, and whether the last check passed. The curated array in `server/providers.mjs` is a seed, never the answer.

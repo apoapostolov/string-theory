@@ -1,6 +1,11 @@
 // Prompt building for the grammar and style polisher.
 // The model never measures pixels; it gets a character budget derived from the
 // measured pixel budget, and the client re-measures the answer.
+//
+// The humanize pass shares every budget and placeholder rule with the others and
+// adds a voice: which editorial method to apply, and optionally the operator's
+// own writing profile.
+import { voiceBlock } from '../shared/voices.mjs'
 
 const MODES = {
   grammar: {
@@ -20,6 +25,13 @@ const MODES = {
     temperature: 0.35,
     instruction:
       'Rewrite the string shorter so it fits the width budget without losing meaning. Cut filler and redundancy first. Keep every fact and every product term.'
+  },
+  // The humanize instruction is not fixed: it comes from the chosen voice, which
+  // is why it is appended rather than written here.
+  humanize: {
+    label: 'Humanize',
+    temperature: 0.55,
+    instruction: 'Rewrite the string in the chosen voice.'
   }
 }
 
@@ -39,8 +51,13 @@ export function estimateChars(font, maxPx) {
   return { perChar, hard, comfortable: Math.max(3, Math.floor(hard * 0.94)) }
 }
 
-export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt }) {
-  const setting = getMode(mode)
+export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt, voice, profile }) {
+  // The mode table is keyed by id and the entries carry no id of their own, so
+  // resolve it here — `setting.id` used to be undefined, which silently turned a
+  // grammar pass on a document into a general rewrite.
+  const modeId = MODES[mode] ? mode : 'style'
+  const setting = { ...MODES[modeId], id: modeId }
+  const voiceTail = setting.id === 'humanize' ? voiceBlock({ voice, profile }) : ''
   const tags = Array.isArray(item.tags) ? item.tags.filter((tag) => typeof tag === 'string' && tag) : []
   // Prose has no box to fit: a README paragraph is judged by the sentence.
   if (item.surface === 'docs') {
@@ -64,7 +81,8 @@ export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt })
       extraPrompt ? `- Extra instruction from the operator: ${extraPrompt}` : null,
       '- If the passage already reads well, return it unchanged.',
       '',
-      `Task for this pass: ${setting.id === 'grammar' ? 'Correct grammar, spelling, punctuation and capitalisation only. Keep the wording.' : 'Rewrite the passage so it reads better: clearer, tighter, honest. Same meaning, same facts, same structure.'}`
+      voiceTail ||
+        `Task for this pass: ${setting.id === 'grammar' ? 'Correct grammar, spelling, punctuation and capitalisation only. Keep the wording.' : 'Rewrite the passage so it reads better: clearer, tighter, honest. Same meaning, same facts, same structure.'}`
     ]
       .filter(Boolean)
       .join('\n')
@@ -115,7 +133,7 @@ export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt })
     extraPrompt ? `- Extra instruction from the operator: ${extraPrompt}` : null,
     '- If the original already reads well and fits the budget, return it unchanged.',
     '',
-    `Task for this pass: ${setting.instruction}`
+    voiceTail || `Task for this pass: ${setting.instruction}`
   ]
     .filter(Boolean)
     .join('\n')

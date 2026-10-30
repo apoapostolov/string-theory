@@ -36,6 +36,7 @@
     "smoke:oauth": "node scripts/oauth-flow.mjs",
     "test:changes": "node scripts/change-prompt.test.mjs",
     "test:models": "node scripts/models.test.mjs",
+    "test:voices": "node scripts/humanize.test.mjs",
     "verify:models": "node scripts/verify-model-endpoints.mjs"
   },
   "dependencies": {
