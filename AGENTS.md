@@ -107,6 +107,13 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - Copy is plain and concrete, never promotional. No em-dashes anywhere in UI strings or docs.
 - New dependency only for a job the platform cannot do. The server currently has none.
 
+## Sign-in rules
+
+- A provider gets a sign-in only when a flow really exists, and the shape is recorded in `server/oauth.mjs`: `device` posts a form, `codex` posts JSON and hands back an authorization code to exchange once, `authorize` is PKCE in the browser with the code pasted back.
+- A ChatGPT session authenticates against `https://chatgpt.com/backend-api/codex`, never `api.openai.com`. The account id rides in the token claims and becomes the `chatgpt-account-id` header; it is optional, so a missing claim never fails a request.
+- A session is a bearer token and an API key is not: `chat()` takes `auth`, and the Anthropic branch sends `anthropic-beta: oauth-2025-04-20` only for a session.
+- `npm run smoke:oauth` must pass before a sign-in change ships. It stubs the endpoints, so it proves the request shapes and the refresh path without an account; it cannot prove a provider still accepts them.
+
 ## Design and access rules
 
 - Rows alternate with `.st-row:nth-child(even)`. Do not add per-row backgrounds from JSX; the stripe is one rule so the list stays even when a filter hides rows.
@@ -120,7 +127,7 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 ## Verifying a change
 
 1. `npm run build` clean, and `npm run check:contrast` at 17/17.
-2. `npm run serve:status` healthy, then `npm run smoke` at 19/19.
+2. `npm run serve:status` healthy, then `npm run smoke` at 19/19 and `npm run smoke:oauth` at 47/47.
 3. `node scripts/validate-export.mjs samples/demo.strings.json` valid.
 4. Load the app, load the sample, and check the bands: one red row (lay out the lines), one amber orphan with its percentage, green rows with a clean two-line wrap, and the per-string 16px title measuring wider than the 14px rows.
 5. Put two files in `inbox/`, open both, edit one, switch, reload: the picker must show both progress numbers and the edits must survive.

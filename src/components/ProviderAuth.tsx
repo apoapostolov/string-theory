@@ -32,6 +32,8 @@ export function ProviderAuth({ provider, payload, onPatch, onToast }: Props) {
   const mode: 'key' | 'oauth' = explicit ?? (session?.present ? 'oauth' : 'key')
 
   const [flow, setFlow] = useState<{ flowId: string; userCode: string; uri: string; interval: number } | null>(null)
+  const [pendingAuth, setPendingAuth] = useState<{ flowId: string; url: string } | null>(null)
+  const [codeDraft, setCodeDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pasteOpen, setPasteOpen] = useState(false)
@@ -40,6 +42,8 @@ export function ProviderAuth({ provider, payload, onPatch, onToast }: Props) {
 
   useEffect(() => {
     setFlow(null)
+    setPendingAuth(null)
+    setCodeDraft('')
     setError(null)
     setPasteOpen(false)
     setTokenDraft('')
@@ -93,6 +97,14 @@ export function ProviderAuth({ provider, payload, onPatch, onToast }: Props) {
     setBusy(true)
     setError(null)
     try {
+      if (oauthConfig?.kind === 'authorize') {
+        const started = await api.startAuthorize(provider.id)
+        setPendingAuth({ flowId: started.flowId, url: started.url })
+        setCodeDraft('')
+        // The provider approves in its own tab and then shows a code to paste.
+        window.open(started.url, '_blank', 'noopener,noreferrer')
+        return
+      }
       const started = await api.startDevice(provider.id)
       setFlow({
         flowId: started.flowId,
@@ -100,6 +112,23 @@ export function ProviderAuth({ provider, payload, onPatch, onToast }: Props) {
         uri: started.verificationUriComplete || started.verificationUri,
         interval: started.interval
       })
+    } catch (failure) {
+      setError((failure as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function finishAuthorize() {
+    if (!pendingAuth) return
+    setBusy(true)
+    setError(null)
+    try {
+      await api.completeAuthorize(provider.id, pendingAuth.flowId, codeDraft.trim())
+      setPendingAuth(null)
+      setCodeDraft('')
+      onToast('ok', `${provider.label} connected`)
+      await onPatch({ authModes: { ...(payload?.config.authModes ?? {}), [provider.id]: 'oauth' } })
     } catch (failure) {
       setError((failure as Error).message)
     } finally {
@@ -194,6 +223,44 @@ export function ProviderAuth({ provider, payload, onPatch, onToast }: Props) {
               >
                 Disconnect
               </button>
+            </div>
+          ) : pendingAuth ? (
+            <div className="rounded-md border border-line bg-ink-850 px-2.5 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-fg-dim">Approve in the browser, then paste the code:</span>
+                <a
+                  href={pendingAuth.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] text-fg underline decoration-line-strong underline-offset-2 hover:decoration-fg"
+                >
+                  open again
+                </a>
+                <button
+                  type="button"
+                  aria-label="Cancel sign-in"
+                  onClick={() => setPendingAuth(null)}
+                  className="ml-auto flex h-5 w-5 items-center justify-center rounded text-fg-faint hover:bg-ink-800 hover:text-fg"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <input
+                  value={codeDraft}
+                  onChange={(event) => setCodeDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && codeDraft.trim() && !busy) void finishAuthorize()
+                  }}
+                  spellCheck={false}
+                  aria-label="Authorization code"
+                  placeholder="paste the code, with or without #state"
+                  className="st-input min-w-0 flex-1 rounded border border-line bg-ink-900 px-2 py-1 font-mono text-[10.5px] text-fg outline-none placeholder:text-fg-faint/60 focus:border-line-strong"
+                />
+                <Button size="sm" onClick={() => void finishAuthorize()} disabled={!codeDraft.trim() || busy} className="h-7">
+                  {busy ? 'Checking…' : 'Finish'}
+                </Button>
+              </div>
             </div>
           ) : flow ? (
             <div className="rounded-md border border-line bg-ink-850 px-2.5 py-2">

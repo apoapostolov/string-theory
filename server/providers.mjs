@@ -194,19 +194,26 @@ export async function listModels(provider, { endpoint, key }) {
  * One chat completion. Returns { text, inputTokens, outputTokens, model }.
  * Token counts are 0 when the provider does not report usage.
  */
+const CODEX_BASE = 'https://chatgpt.com/backend-api/codex'
+
 export async function chat(provider, opts) {
-  const { endpoint, key, model, system, user, temperature = 0.4, maxTokens = 700 } = opts
+  const { endpoint, key, model, system, user, temperature = 0.4, maxTokens = 700, auth = 'key', accountId = '' } = opts
   const base = endpoint || provider.endpoint
   const started = Date.now()
 
   if (provider.kind === 'anthropic') {
+    // A subscription session authenticates with a bearer token and the beta
+    // header that provider requires for OAuth traffic; an API key does not.
+    const headers = { 'content-type': 'application/json', 'anthropic-version': '2023-06-01' }
+    if (auth === 'oauth') {
+      headers.Authorization = `Bearer ${key}`
+      headers['anthropic-beta'] = 'oauth-2025-04-20'
+    } else {
+      headers['x-api-key'] = key
+    }
     const res = await fetch(joinUrl(base, 'messages'), {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01'
-      },
+      headers,
       body: JSON.stringify({
         model,
         max_tokens: maxTokens,
@@ -257,6 +264,78 @@ export async function chat(provider, opts) {
       model,
       ms: Date.now() - started
     }
+  }
+
+  // A ChatGPT session is not a platform key: it is only accepted by the Codex
+  // endpoint, and it wants the account id beside the bearer token.
+  if (provider.id === 'openai' && auth === 'oauth') {
+    const codexBase = base || CODEX_BASE
+    const headers = {
+      'content-type': 'application/json',
+      accept: 'text/event-stream',
+      Authorization: `Bearer ${key}`,
+      originator: 'codex_cli_rs',
+      'OpenAI-Beta': 'responses=experimental'
+    }
+    if (accountId) headers['chatgpt-account-id'] = accountId
+
+    const res = await fetch(joinUrl(codexBase, 'responses'), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model,
+        instructions: system,
+        input: [{ role: 'user', content: [{ type: 'input_text', text: user }] }],
+        store: false,
+        stream: true
+      })
+    })
+    const raw = await res.text()
+    if (!res.ok) throw providerError(provider.label, res.status, raw)
+
+    // The endpoint streams server-sent events; a plain JSON body is accepted too.
+    let text = ''
+    let inputTokens = 0
+    let outputTokens = 0
+    const collected = []
+    const lines = raw.split('\n')
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith('data:')) continue
+      const payload = trimmed.slice(5).trim()
+      if (!payload || payload === '[DONE]') continue
+      try {
+        collected.push(JSON.parse(payload))
+      } catch {
+        // A partial frame is not worth failing the request over.
+      }
+    }
+    if (!collected.length) {
+      try {
+        collected.push(JSON.parse(raw))
+      } catch {
+        throw providerError(provider.label, res.status, raw)
+      }
+    }
+    for (const event of collected) {
+      const kind = event.type ?? ''
+      if (kind === 'response.output_text.delta' && typeof event.delta === 'string') text += event.delta
+      const usage = event.usage ?? event.response?.usage
+      if (usage) {
+        inputTokens = usage.input_tokens ?? usage.prompt_tokens ?? inputTokens
+        outputTokens = usage.output_tokens ?? usage.completion_tokens ?? outputTokens
+      }
+      const output = event.output ?? event.response?.output
+      if (Array.isArray(output)) {
+        for (const item of output) {
+          for (const part of item.content ?? []) {
+            if (typeof part.text === 'string' && !text.includes(part.text)) text += part.text
+          }
+        }
+      }
+    }
+    if (!text.trim()) throw providerError(provider.label, res.status, raw.slice(0, 400))
+    return { text, inputTokens, outputTokens, model, ms: Date.now() - started }
   }
 
   const headers = { 'content-type': 'application/json', Accept: 'application/json' }

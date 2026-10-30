@@ -71,7 +71,7 @@ Every AI action is per string and per click. There is no "polish all", because a
 
 ![The style analyst reading completed rewrites](docs/screenshot-style.png)
 
-Providers are the usual set: OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Mistral, Qwen, Z.ai, OpenCode Go, xAI, and a local OpenAI-compatible server for Ollama or LM Studio. Where a provider publishes a real OAuth flow you can sign in instead of pasting a key; xAI is wired today, with a device code, automatic refresh, and a sealed session. Every call is written to a usage ledger with token counts and an estimated cost, and daily and monthly budgets stop the calls when they are reached.
+Providers are the usual set: OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, Mistral, Qwen, Z.ai, OpenCode Go, xAI, and a local OpenAI-compatible server for Ollama or LM Studio. Where a provider runs a real OAuth flow you can sign in instead of pasting a key. Three are wired: xAI and ChatGPT by device code, and Claude by approving in the browser and pasting the code it shows. Each keeps a sealed session on this machine, refreshes itself before it expires, and falls back to a key the moment you pin one. A ChatGPT session is only accepted by the Codex endpoint, so those calls go there, not to `api.openai.com`. Every call is written to a usage ledger with token counts and an estimated cost, and daily and monthly budgets stop the calls when they are reached.
 
 ## Screenshots
 
@@ -154,6 +154,8 @@ node scripts/validate-export.mjs samples/demo.strings.json
 ```
 
 There is no test framework. `scripts/smoke.mjs` starts a stub OpenAI-compatible provider and runs real calls through the server: prompt contents, token and cost accounting, the budget guard, the credential errors, the analyst's three-pair floor, and the profile listing. Then it restores the config it changed.
+
+`scripts/oauth-flow.mjs` points the token endpoints at a local stub and checks the three sign-in shapes without borrowing an account: the PKCE parameters on the Claude authorize URL, the code exchange, the Codex device handshake, refresh rotation, a spent flow being refused, and the headers each authentication style puts on the wire.
 
 The architecture, the invariants that must not drift, and the map of which file owns which job are in [`AGENTS.md`](AGENTS.md). The screenshots and the banner are regenerated from `brand/` at fixed sizes.
 

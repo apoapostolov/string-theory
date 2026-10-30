@@ -9,7 +9,18 @@ import { randomUUID } from 'node:crypto'
 
 import { PROVIDERS, chat, getProvider, listModels, publicProvider } from './providers.mjs'
 import { ensureInbox, listInbox, readInboxFile, resolveInbox } from './inbox.mjs'
-import { disconnect, importToken, oauthConfig, pollDeviceFlow, publicOAuthProviders, startDeviceFlow, validAccessToken } from './oauth.mjs'
+import {
+  accountIdFromToken,
+  completeAuthorizeFlow,
+  disconnect,
+  importToken,
+  oauthConfig,
+  pollDeviceFlow,
+  publicOAuthProviders,
+  startAuthorizeFlow,
+  startDeviceFlow,
+  validAccessToken
+} from './oauth.mjs'
 import { estimateCost } from './pricing.mjs'
 import { buildPrompt, getMode, modeList, sanitiseOutput } from './polish.mjs'
 import {
@@ -140,9 +151,15 @@ async function resolveCredentials(bodyProvider) {
     const token = await validAccessToken(provider.id)
     if (token) return { provider, key: token, endpoint, model, auth: 'oauth' }
     if (mode === 'oauth') {
+      // Never signed in reads differently from signed in and expired.
+      const ever = oauthHints()[provider.id]?.present
       throw Object.assign(
-        new Error(`${provider.label} sign-in has expired. Reconnect it in Settings, or switch to an API key.`),
-        { status: 401, code: 'oauth-expired' }
+        new Error(
+          ever
+            ? `${provider.label} sign-in has expired. Reconnect it in Settings, or switch to an API key.`
+            : `${provider.label} is set to sign-in, but no session is saved. Finish signing in, or switch back to an API key.`
+        ),
+        { status: 401, code: ever ? 'oauth-expired' : 'oauth-missing' }
       )
     }
   }
@@ -206,8 +223,10 @@ async function handlePolish(body) {
   })
 
   const result = await chat(provider, {
-    endpoint,
+    endpoint: auth === 'oauth' && provider.id === 'openai' ? '' : endpoint,
     key,
+    auth,
+    accountId: auth === 'oauth' ? accountIdFromToken(key) : '',
     model,
     system: prompt.system,
     user: prompt.user,
@@ -280,13 +299,14 @@ async function handleStyleRun(body) {
   const config = getConfig()
   assertBudget(config)
 
-  const { provider, key, endpoint, model: configModel } = await resolveCredentials(body.providerId)
+  const { provider, key, endpoint, model: configModel, auth } = await resolveCredentials(body.providerId)
   const model = String(body.model || configModel || provider.models[0])
   const prompt = buildStylePrompt({ app: body.app, context: body.context, pairs })
 
   const result = await chat(provider, {
     endpoint,
     key,
+    auth,
     model,
     system: prompt.system,
     user: prompt.user,
@@ -392,6 +412,17 @@ async function routes(req, res, url) {
   const devicePoll = pathname.match(/^\/api\/oauth\/([a-z0-9-]+)\/device\/([A-Za-z0-9-]+)\/poll$/)
   if (devicePoll && method === 'POST') {
     return json(res, 200, await pollDeviceFlow(devicePoll[1], devicePoll[2]))
+  }
+
+  const authorizeStart = pathname.match(/^\/api\/oauth\/([a-z0-9-]+)\/authorize$/)
+  if (authorizeStart && method === 'POST') {
+    return json(res, 200, startAuthorizeFlow(authorizeStart[1]))
+  }
+
+  const authorizeDone = pathname.match(/^\/api\/oauth\/([a-z0-9-]+)\/authorize\/([A-Za-z0-9-]+)$/)
+  if (authorizeDone && method === 'POST') {
+    const body = await readBody(req)
+    return json(res, 200, await completeAuthorizeFlow(authorizeDone[1], authorizeDone[2], body.code))
   }
 
   const tokenImport = pathname.match(/^\/api\/oauth\/([a-z0-9-]+)\/token$/)

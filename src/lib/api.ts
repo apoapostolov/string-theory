@@ -1,5 +1,6 @@
 import type {
   ConfigPayload,
+  AuthorizeStart,
   DevicePoll,
   DeviceStart,
   ModeId,
@@ -98,6 +99,13 @@ export const api = {
     request<DeviceStart>(`/api/oauth/${providerId}/device`, { method: 'POST' }),
   pollDevice: (providerId: string, flowId: string) =>
     request<DevicePoll>(`/api/oauth/${providerId}/device/${encodeURIComponent(flowId)}/poll`, { method: 'POST' }),
+  startAuthorize: (providerId: string) =>
+    request<AuthorizeStart>(`/api/oauth/${providerId}/authorize`, { method: 'POST' }),
+  completeAuthorize: (providerId: string, flowId: string, code: string) =>
+    request<{ status: string; account: string; expiresAt: string }>(
+      `/api/oauth/${providerId}/authorize/${encodeURIComponent(flowId)}`,
+      { method: 'POST', body: JSON.stringify({ code }) }
+    ),
   importOAuthToken: (providerId: string, body: { access: string; refresh?: string; expiresAt?: string }) =>
     request<{ connected: boolean; expiresAt: string }>(`/api/oauth/${providerId}/token`, {
       method: 'POST',

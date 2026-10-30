@@ -200,9 +200,16 @@ export type Config = {
 export type OAuthProvider = {
   id: string
   label: string
-  kind: 'device' | 'token'
+  kind: 'device' | 'codex' | 'authorize' | 'token'
   note: string
   allowsTokenImport: boolean
+}
+
+/** A browser sign-in: the provider shows a code, the operator pastes it back. */
+export type AuthorizeStart = {
+  flowId: string
+  url: string
+  expiresAt: string
 }
 
 export type OAuthSession = {
