@@ -126,6 +126,12 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - A format change touches `docs/format.md`, the schema, `FormatSpec` and this prompt in the same commit. `scripts/validate-export.mjs` is the arbiter: an export produced from the prompt must exit 0 or the prompt is wrong.
 - The instructions open from two places on purpose: the inbox empty state, and an AI Instructions button in the picker header, which must work when files are already present.
 
+## Popovers inside a row
+
+- A row's popover cannot outrank the rows below it from the inside: every windowed row is an absolutely positioned wrapper carrying a transform to place it, and a transform makes its own stacking context. Lift the wrapper with `.st-rowwrap:has([aria-expanded='true'])` / `:has(.st-tagpanel)`; a `z-30` on the menu alone changes nothing.
+- A menu opened from a row near the bottom of the list would be clipped by the scroller, so it flips above the trigger when there is less than roughly 230px of viewport below it. Measure at open time.
+- Test this by hit-testing the point inside the menu with `document.elementFromPoint`: before the fix it returns an element from the row underneath, and the last menu item is unclickable.
+
 ## Model catalogues
 
 - `server/models-cache.mjs` owns the cache: `data/models-cache.json`, one entry per provider with the models, the time it was fetched, and whether the last check passed. The curated array in `server/providers.mjs` is a seed, never the answer.

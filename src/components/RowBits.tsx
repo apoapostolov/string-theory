@@ -61,6 +61,9 @@ export function PassControl({
   modes?: Array<{ id: ModeId; label: string; hint: string }>
 }) {
   const [open, setOpen] = useState(false)
+  // A menu under the last visible row would be cut off by the list, so it opens
+  // upward when there is no room below the trigger.
+  const [flip, setFlip] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -89,7 +92,11 @@ export function PassControl({
       <span className="w-px bg-line-strong" />
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          const rect = root.current?.getBoundingClientRect()
+          if (rect) setFlip(window.innerHeight - rect.bottom < 230)
+          setOpen((value) => !value)
+        }}
         disabled={busy}
         aria-label="Choose pass"
         aria-haspopup="menu"
@@ -109,7 +116,9 @@ export function PassControl({
               setOpen(false)
             }
           }}
-          className="st-dialog absolute top-full right-0 z-30 mt-1 w-56 overflow-hidden rounded-[10px] border border-line bg-ink-800 py-1 shadow-[0_18px_40px_rgba(0,0,0,0.6)]"
+          className={`st-dialog absolute right-0 z-30 w-56 overflow-hidden rounded-[10px] border border-line bg-ink-800 py-1 shadow-[0_18px_40px_rgba(0,0,0,0.6)] ${
+            flip ? 'bottom-full mb-1' : 'top-full mt-1'
+          }`}
         >
           {!connected ? (
             <p className="border-b border-line px-3 py-1.5 text-[10.5px] leading-snug text-fg-faint">

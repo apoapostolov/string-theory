@@ -149,6 +149,15 @@
   top: 0;
   right: 0;
   left: 0;
+  /* The wrapper carries a transform to place the row, and a transform makes its
+     own stacking context — so a menu opened inside an earlier row can never
+     outrank a later one from the inside. Lift the wrapper instead. */
+  z-index: 0;
+}
+
+.st-rowwrap:has([aria-expanded='true']),
+.st-rowwrap:has(.st-tagpanel) {
+  z-index: 30;
 }
 
 .st-row {
