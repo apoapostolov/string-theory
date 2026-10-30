@@ -154,13 +154,25 @@ function providerError(label, status, body) {
   return err
 }
 
-export async function listModels(provider, { endpoint, key }) {
+export async function listModels(provider, { endpoint, key, auth = 'key' }) {
   const base = endpoint || provider.endpoint
   const headers = { Accept: 'application/json' }
 
+  // A session is a bearer token, not an API key, and the two never share headers.
+  if (auth === 'oauth' && provider.kind === 'openai' && provider.id === 'openai') {
+    throw Object.assign(
+      new Error('A ChatGPT session has no model catalogue to read; the model list comes from the platform API key.'),
+      { code: 'no-catalogue' }
+    )
+  }
+
   if (provider.kind === 'anthropic') {
+    const credentialHeaders =
+      auth === 'oauth'
+        ? { Authorization: `Bearer ${key}`, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'oauth-2025-04-20' }
+        : { 'x-api-key': key, 'anthropic-version': '2023-06-01' }
     const res = await fetch(joinUrl(base, 'models?limit=100'), {
-      headers: { ...headers, 'x-api-key': key, 'anthropic-version': '2023-06-01' }
+      headers: { ...headers, ...credentialHeaders }
     })
     const body = await res.text()
     if (!res.ok) throw providerError(provider.label, res.status, body)

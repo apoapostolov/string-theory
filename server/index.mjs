@@ -7,7 +7,7 @@ import { dirname, extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 
-import { PROVIDERS, chat, getProvider, listModels, publicProvider } from './providers.mjs'
+import { PROVIDERS, chat, getProvider, publicProvider } from './providers.mjs'
 import { ensureInbox, listInbox, readInboxFile, resolveInbox } from './inbox.mjs'
 import {
   accountIdFromToken,
@@ -21,6 +21,7 @@ import {
   startDeviceFlow,
   validAccessToken
 } from './oauth.mjs'
+import { cacheSnapshot, dropProvider, ensureModels, refreshModels } from './models-cache.mjs'
 import { estimateCost } from './pricing.mjs'
 import { buildPrompt, getMode, modeList, sanitiseOutput } from './polish.mjs'
 import {
@@ -125,8 +126,66 @@ function configPayload() {
     modes: modeList(),
     inbox: { dir: resolveInbox(config.inboxDir) },
     profiles: { dir: stylesDir() },
-    oauth: { providers: publicOAuthProviders(), sessions: oauthHints() }
+    oauth: { providers: publicOAuthProviders(), sessions: oauthHints() },
+    models: cacheSnapshot(getConfig().modelsTtlHours)
   }
+}
+
+/**
+ * The credential a provider would use, without the exceptions `resolveCredentials`
+ * throws at request time: a catalogue refresh must not fail because nothing is
+ * connected yet.
+ */
+async function credentialsFor(provider) {
+  const config = getConfig()
+  const endpoint = endpointFor(provider.id, provider.endpoint)
+  const oauth = oauthConfig(provider.id)
+  const explicit = config.authModes?.[provider.id]
+  const mode = explicit === 'key' || explicit === 'oauth' ? explicit : oauth ? 'auto' : 'key'
+
+  if (oauth && mode !== 'key') {
+    const token = await validAccessToken(provider.id)
+    if (token) return { key: token, auth: 'oauth', endpoint: oauth.kind === 'codex' ? '' : endpoint }
+    if (mode === 'oauth') return null
+  }
+  const key = getKey(provider.id)
+  if (!key) return null
+  return { key, auth: 'key', endpoint }
+}
+
+/**
+ * A session that just landed is a credential, so the catalogue is re-fetched with
+ * it: sign-in usually reveals a different set than an API key did.
+ */
+async function refreshAfterSignIn(providerId) {
+  const provider = getProvider(providerId)
+  if (!provider) return
+  try {
+    const credentials = await credentialsFor(provider)
+    if (!credentials) return
+    await refreshModels(provider, { ...credentials, reason: 'sign-in' })
+  } catch (error) {
+    console.error(`models refresh after sign-in failed for ${providerId}: ${error.message}`)
+  }
+}
+
+/** Re-fetch every connected provider whose catalogue has aged out. */
+async function warmModels() {
+  const config = getConfig()
+  const snapshot = cacheSnapshot(config.modelsTtlHours)
+  await Promise.all(
+    PROVIDERS.map(async (provider) => {
+      try {
+        const entry = snapshot.providers[provider.id]
+        if (entry && !entry.stale) return
+        const credentials = await credentialsFor(provider)
+        if (!credentials) return
+        await ensureModels(provider, { ...credentials, ttlHours: config.modelsTtlHours })
+      } catch (error) {
+        console.error(`models warm failed for ${provider.id}: ${error.message}`)
+      }
+    })
+  )
 }
 
 async function resolveCredentials(bodyProvider) {
@@ -373,13 +432,29 @@ async function routes(req, res, url) {
     return json(res, 200, { ok: true, version: VERSION, dataDir: DATA_DIR })
   }
 
-  if (pathname === '/api/config' && method === 'GET') {
+if (pathname === '/api/config' && method === 'GET') {
+    // A stale catalogue is refreshed behind the response, so opening Settings
+    // never waits on a provider round trip. The next payload carries it.
+    void warmModels()
     return json(res, 200, configPayload())
   }
 
   if (pathname === '/api/config' && method === 'PATCH') {
     const body = await readBody(req)
     await patchConfig(body)
+    // Pointing a provider at another host is a credential change in disguise: the
+    // catalogue that came from the old one says nothing about the new one.
+    if (body.providerId && body.endpoint !== undefined) {
+      const provider = getProvider(body.providerId)
+      if (provider) {
+        try {
+          const credentials = await credentialsFor(provider)
+          if (credentials) await refreshModels(provider, { ...credentials, reason: 'endpoint-changed' })
+        } catch (error) {
+          console.error(`models refresh after endpoint change failed for ${provider.id}: ${error.message}`)
+        }
+      }
+    }
     return json(res, 200, configPayload())
   }
 
@@ -418,7 +493,9 @@ async function routes(req, res, url) {
 
   const devicePoll = pathname.match(/^\/api\/oauth\/([a-z0-9-]+)\/device\/([A-Za-z0-9-]+)\/poll$/)
   if (devicePoll && method === 'POST') {
-    return json(res, 200, await pollDeviceFlow(devicePoll[1], devicePoll[2]))
+    const result = await pollDeviceFlow(devicePoll[1], devicePoll[2])
+    if (!result?.pending) await refreshAfterSignIn(devicePoll[1])
+    return json(res, 200, result)
   }
 
   const authorizeStart = pathname.match(/^\/api\/oauth\/([a-z0-9-]+)\/authorize$/)
@@ -429,13 +506,17 @@ async function routes(req, res, url) {
   const authorizeDone = pathname.match(/^\/api\/oauth\/([a-z0-9-]+)\/authorize\/([A-Za-z0-9-]+)$/)
   if (authorizeDone && method === 'POST') {
     const body = await readBody(req)
-    return json(res, 200, await completeAuthorizeFlow(authorizeDone[1], authorizeDone[2], body.code))
+    const result = await completeAuthorizeFlow(authorizeDone[1], authorizeDone[2], body.code)
+    await refreshAfterSignIn(authorizeDone[1])
+    return json(res, 200, result)
   }
 
   const tokenImport = pathname.match(/^\/api\/oauth\/([a-z0-9-]+)\/token$/)
   if (tokenImport && method === 'POST') {
     const body = await readBody(req)
-    return json(res, 200, await importToken(tokenImport[1], body))
+    const result = await importToken(tokenImport[1], body)
+    await refreshAfterSignIn(tokenImport[1])
+    return json(res, 200, result)
   }
 
   const oauthSession = pathname.match(/^\/api\/oauth\/([a-z0-9-]+)$/)
@@ -458,10 +539,17 @@ async function routes(req, res, url) {
       if (!key) return fail(res, 400, 'Empty key')
       if (key.length > 4000) return fail(res, 400, 'Key looks wrong')
       await setKey(provider.id, key)
+      // The listing is the health check: it answers 200 only to a key the
+      // provider accepts, so a good answer is cached and a rejection is recorded.
+      const credentials = await credentialsFor(provider)
+      if (credentials) {
+        await refreshModels(provider, { ...credentials, reason: 'key-saved' })
+      }
       return json(res, 200, configPayload())
     }
     if (method === 'DELETE') {
       await deleteKey(provider.id)
+      dropProvider(provider.id)
       return json(res, 200, configPayload())
     }
   }
@@ -471,32 +559,34 @@ async function routes(req, res, url) {
     const provider = getProvider(modelsMatch[1])
     if (!provider) return fail(res, 404, 'Unknown provider')
     const body = await readBody(req)
-    const key = String(body.key ?? '').trim() || getKey(provider.id)
-    if (provider.needsKey && !key) {
+    const typed = String(body.key ?? '').trim()
+    const config = getConfig()
+
+    let credentials = typed ? { key: typed, auth: 'key', endpoint: endpointFor(provider.id, provider.endpoint) } : await credentialsFor(provider)
+    if (!credentials && provider.needsKey) {
       return json(res, 200, {
         models: provider.models,
         source: 'curated',
-        message: 'Add a key to query the provider catalogue.'
+        message: 'Add a key to query the provider catalogue.',
+        modelsIndex: cacheSnapshot(config.modelsTtlHours)
       })
     }
-    try {
-      const endpoint = endpointFor(provider.id, provider.endpoint)
-      const models = await listModels(provider, { endpoint, key })
-      if (!models.length) {
-        return json(res, 200, {
-          models: provider.models,
-          source: 'curated',
-          message: 'Provider returned no models; showing the curated list.'
-        })
-      }
-      return json(res, 200, { models, source: 'remote', message: `${models.length} models from ${provider.label}` })
-    } catch (error) {
-      return json(res, 200, {
-        models: provider.models,
-        source: 'curated',
-        message: `${error.message}. Showing the curated list.`
-      })
-    }
+    credentials = credentials ?? { key: '', auth: 'key', endpoint: endpointFor(provider.id, provider.endpoint) }
+
+    // Without `force: false` this is the operator pressing Refresh, so it always
+    // goes upstream instead of answering from the cache.
+    const entry = body.force === false
+      ? await ensureModels(provider, { ...credentials, ttlHours: config.modelsTtlHours })
+      : await refreshModels(provider, { ...credentials, reason: 'manual' })
+
+    return json(res, 200, {
+      models: entry.models,
+      source: entry.source,
+      message: entry.ok
+        ? `${entry.count} models from ${provider.label}`
+        : `${entry.error}. ${entry.source === 'remote' ? 'Keeping the last good catalogue.' : 'Showing the curated list.'}`,
+      modelsIndex: cacheSnapshot(config.modelsTtlHours)
+    })
   }
 
   if (pathname === '/api/polish' && method === 'POST') {

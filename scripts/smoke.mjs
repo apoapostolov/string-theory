@@ -7,12 +7,17 @@
 //   ST_URL=http://127.0.0.1:4317 node scripts/smoke.mjs
 
 import { createServer } from 'node:http'
-import { unlinkSync } from 'node:fs'
+import { readFileSync, unlinkSync } from 'node:fs'
+import { join } from 'node:path'
 
 const BASE = process.env.ST_URL ?? 'http://127.0.0.1:4317'
 const MOCK_PORT = Number(process.env.MOCK_PORT ?? 4566)
 
 let lastRequest = null
+/** How the stub answers GET /models: a good catalogue, a dead key, or a key
+ *  that may chat but not read the catalogue. */
+let catalogue = 'ok'
+let catalogueHits = 0
 
 const mock = createServer((req, res) => {
   let raw = ''
@@ -21,7 +26,18 @@ const mock = createServer((req, res) => {
   })
   req.on('end', () => {
     if (req.method === 'GET') {
-      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ data: [{ id: 'gpt-4.1-mini' }] }))
+      catalogueHits += 1
+      if (catalogue === '401') {
+        res.writeHead(401, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { message: 'Incorrect API key provided.' } }))
+        return
+      }
+      if (catalogue === 'limited') {
+        res
+          .writeHead(403, { 'content-type': 'application/json' })
+          .end(JSON.stringify({ error: { message: 'Missing scopes: api.model.read.' } }))
+        return
+      }
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ data: [{ id: 'gpt-4.1-mini' }, { id: 'gpt-5.6-luna' }] }))
       return
     }
     const payload = JSON.parse(raw || '{}')
@@ -67,6 +83,9 @@ const before = (await call('/api/usage')).body
 
 // Point a priced provider at the stub so cost and budget accounting are exercised.
 const savedConfig = (await call('/api/config')).body.config
+// A crashed run leaves the budget guard's 1e-7 caps behind, and restoring them
+// would brick polish for the operator. Treat an absurd cap as absent.
+const saneUsd = (value, fallback) => (Number.isFinite(value) && value >= 0.01 ? value : fallback)
 const configured = await call('/api/config', {
   method: 'PATCH',
   body: JSON.stringify({
@@ -115,9 +134,72 @@ check(
   `${before.day.requests} -> ${polish.body?.summary?.day?.requests}`
 )
 
+// Changing a provider's endpoint is a credential change in disguise: the
+// catalogue that came from the old host must be re-fetched, not reused.
+const endpointRefresh = await call('/api/config', {
+  method: 'PATCH',
+  body: JSON.stringify({ providerId: 'openai', endpoint: `http://127.0.0.1:${MOCK_PORT}/v1` })
+})
+check(
+  'changing the endpoint re-fetches the catalogue',
+  endpointRefresh.body?.models?.providers?.openai?.ok === true,
+  JSON.stringify(endpointRefresh.body?.models?.providers?.openai?.state)
+)
+
 // Model discovery through the provider adapter.
 const models = await call('/api/providers/openai/models', { method: 'POST', body: JSON.stringify({}) })
 check('models come from the provider', models.body?.source === 'remote' && models.body.models.includes('gpt-4.1-mini'))
+
+// ---------------------------------------------------------------- catalogue cache
+// The catalogue is data: fetched, cached on disk, and refreshed when it ages out
+// or when a credential changes, with the listing doubling as the health check.
+const dataDir = (await call('/api/health')).body.dataDir
+const cachePath = join(dataDir, 'models-cache.json')
+const cachedAfterKey = JSON.parse(readFileSync(cachePath, 'utf8'))
+check(
+  'saving a key fetched and cached the catalogue',
+  cachedAfterKey.openai?.ok === true && cachedAfterKey.openai.models.includes('gpt-5.6-luna'),
+  JSON.stringify(cachedAfterKey.openai?.models?.slice(0, 3))
+)
+check('the cache records when it was fetched', Boolean(Date.parse(cachedAfterKey.openai?.fetchedAt ?? '')))
+check('the cache records the credential that proved it', cachedAfterKey.openai?.state === 'ok')
+
+// A dead credential is a rejected check, not a silent empty picker.
+catalogue = '401'
+const rejected = await call('/api/providers/openai/models', { method: 'POST', body: JSON.stringify({}) })
+const rejectedEntry = rejected.body?.modelsIndex?.providers?.openai
+check('a 401 is reported as a rejected credential', rejectedEntry?.state === 'rejected', JSON.stringify(rejectedEntry?.state))
+check('a rejected credential falls back to the curated list', rejectedEntry?.models?.length === 5, `${rejectedEntry?.models?.length} models`)
+check('the rejection keeps the provider message', /401|Incorrect API key/.test(String(rejectedEntry?.error ?? '')), rejectedEntry?.error)
+
+// A key allowed to polish but not to read the catalogue is a different fault.
+catalogue = 'limited'
+const limited = await call('/api/providers/openai/models', { method: 'POST', body: JSON.stringify({}) })
+const limitedEntry = limited.body?.modelsIndex?.providers?.openai
+check('a key without model.read is limited, not rejected', limitedEntry?.state === 'limited', JSON.stringify(limitedEntry?.state))
+check('a limited key does not read as a dead key', limitedEntry?.state !== 'rejected')
+
+// Back to a good catalogue, then prove the TTL drives an automatic refresh.
+catalogue = 'ok'
+await call('/api/providers/openai/models', { method: 'POST', body: JSON.stringify({}) })
+const savedTtl = (await call('/api/config')).body.config.modelsTtlHours
+await call('/api/config', { method: 'PATCH', body: JSON.stringify({ modelsTtlHours: 0 }) })
+const hitsBefore = catalogueHits
+await call('/api/config')
+await new Promise((resolve) => setTimeout(resolve, 900))
+await call('/api/config')
+check('a stale catalogue is refreshed automatically on load', catalogueHits > hitsBefore, `${hitsBefore} -> ${catalogueHits} fetches`)
+const warm = (await call('/api/config')).body.models?.providers?.openai
+check('the payload carries the cached catalogue', warm?.ok === true && Array.isArray(warm.models), `${warm?.count} models`)
+await call('/api/config', { method: 'PATCH', body: JSON.stringify({ modelsTtlHours: savedTtl }) })
+
+// Deleting the credential drops the catalogue with it.
+await call('/api/keys/openai', { method: 'DELETE' })
+const afterDelete = JSON.parse(readFileSync(cachePath, 'utf8'))
+check('deleting a key drops its catalogue', afterDelete.openai === undefined, JSON.stringify(Object.keys(afterDelete)))
+// Put the harness key back for the checks that follow; the restore block at the
+// end deletes it, so a run never leaves a junk credential in Settings.
+await call('/api/keys/openai', { method: 'PUT', body: JSON.stringify({ key: '***' }) })
 
 // Budget guard: shove both caps below the recorded spend.
 await call('/api/config', { method: 'PATCH', body: JSON.stringify({ dailyUsd: 0.0000001, monthlyUsd: 0.0000001 }) })
@@ -131,7 +213,11 @@ check('budget guard blocks the call', blocked.status === 402, `status ${blocked.
 // cheaper budget guard does not answer before the credential check.
 await call('/api/config', {
   method: 'PATCH',
-  body: JSON.stringify({ dailyUsd: savedConfig.dailyUsd, monthlyUsd: savedConfig.monthlyUsd, activeProvider: null })
+  body: JSON.stringify({
+    dailyUsd: saneUsd(savedConfig.dailyUsd, 1.5),
+    monthlyUsd: saneUsd(savedConfig.monthlyUsd, 12),
+    activeProvider: null
+  })
 })
 const noProvider = await call('/api/polish', {
   method: 'POST',
@@ -210,8 +296,8 @@ await call('/api/config', {
     providerId: 'openai',
     endpoint: '',
     authModes: savedConfig.authModes ?? {},
-    dailyUsd: savedConfig.dailyUsd,
-    monthlyUsd: savedConfig.monthlyUsd
+    dailyUsd: saneUsd(savedConfig.dailyUsd, 1.5),
+    monthlyUsd: saneUsd(savedConfig.monthlyUsd, 12)
   })
 })
 

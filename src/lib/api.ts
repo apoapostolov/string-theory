@@ -81,11 +81,17 @@ export const api = {
   setKey: (providerId: string, key: string) =>
     request<ConfigPayload>(`/api/keys/${providerId}`, { method: 'PUT', body: JSON.stringify({ key }) }),
   clearKey: (providerId: string) => request<ConfigPayload>(`/api/keys/${providerId}`, { method: 'DELETE' }),
-  models: (providerId: string, key?: string) =>
-    request<{ models: string[]; source: 'remote' | 'curated'; message: string }>(
-      `/api/providers/${providerId}/models`,
-      { method: 'POST', body: JSON.stringify({ key: key ?? '' }) }
-    ),
+  // A refresh is also the health check: a 200 here means the credential works.
+  models: (providerId: string, key?: string, force = true) =>
+    request<{
+      models: string[]
+      source: 'remote' | 'curated'
+      message: string
+      modelsIndex: import('../types').ModelsIndex
+    }>(`/api/providers/${providerId}/models`, {
+      method: 'POST',
+      body: JSON.stringify({ key: key ?? '', force })
+    }),
   polish: (body: PolishRequest) =>
     request<PolishResponse>('/api/polish', { method: 'POST', body: JSON.stringify(body) }),
   usage: () => request<UsageSummary>('/api/usage'),

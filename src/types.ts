@@ -221,6 +221,8 @@ export type Config = {
   inboxDir: string
   styleDir: string
   authModes: Record<string, 'key' | 'oauth'>
+  /** Hours a fetched model catalogue stays fresh before it is fetched again. */
+  modelsTtlHours: number
 }
 
 export type OAuthProvider = {
@@ -262,9 +264,37 @@ export type DevicePoll = {
   expiresAt?: string
 }
 
+/** One provider's fetched catalogue, as the server cached it. */
+export type ModelCacheEntry = {
+  models: string[]
+  source: 'remote' | 'curated'
+  /** True when `/models` answered 200 with the credential in use. */
+  ok: boolean
+  /**
+   * ok: the catalogue came back. limited: the credential works but may not read
+   * the catalogue. rejected: the provider refused the credential. unreachable:
+   * the request never got an answer.
+   */
+  state?: 'ok' | 'limited' | 'rejected' | 'unreachable'
+  fetchedAt: string | null
+  checkedAt: string
+  error: string
+  count: number
+  stale: boolean
+  reason?: string
+  status?: number | null
+  upstreamStatus?: number | null
+}
+
+export type ModelsIndex = {
+  ttlHours: number
+  providers: Record<string, ModelCacheEntry>
+}
+
 export type ConfigPayload = {
   config: Config
   providers: ProviderInfo[]
+  models?: ModelsIndex
   keys: Record<string, { present: boolean; hint: string }>
   usage: UsageSummary
   modes: Array<{ id: ModeId; label: string; instruction: string }>

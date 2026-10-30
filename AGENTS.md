@@ -126,6 +126,15 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - A format change touches `docs/format.md`, the schema, `FormatSpec` and this prompt in the same commit. `scripts/validate-export.mjs` is the arbiter: an export produced from the prompt must exit 0 or the prompt is wrong.
 - The instructions open from two places on purpose: the inbox empty state, and an AI Instructions button in the picker header, which must work when files are already present.
 
+## Model catalogues
+
+- `server/models-cache.mjs` owns the cache: `data/models-cache.json`, one entry per provider with the models, the time it was fetched, and whether the last check passed. The curated array in `server/providers.mjs` is a seed, never the answer.
+- The catalogue fetch is the health check. `/models` answers 200 only to an accepted credential, so a save, a completed sign-in or an endpoint change refreshes it, and a stale entry is refreshed behind the next `GET /api/config`. Never block a response on it: warm in the background on load, await only on an explicit action.
+- `state` is the verdict, not `ok`: `ok`, `limited` (the credential works but may not read the catalogue), `rejected` (401), `unreachable`. A limited key must not read as a dead one, and a failure never overwrites a good catalogue unless the credential was rejected.
+- A session and a key do not share headers here either: `listModels` takes `auth`, sends a bearer and the oauth beta header for a Claude session, and refuses outright for a ChatGPT session that has no catalogue to read.
+- The refresh control lives with the model picker, not in the key-only block, because a sign-in has a catalogue too.
+- `scripts/models.test.mjs` pins freshness, classification, the header shapes and the cache lifecycle against a local stub; `scripts/smoke.mjs` drives the same paths through the running server.
+
 ## Two surfaces
 
 - A file is either `surface: "app"` (the default) or `surface: "docs"`. Never mix them: a docs row has no wrap box, and a budget on one is a warning, not a convenience.

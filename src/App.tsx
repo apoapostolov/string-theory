@@ -1048,6 +1048,7 @@ export default function App() {
         payload={payload}
         font={meta?.font ?? null}
         onPatch={patchConfig}
+        onModelsIndex={(index) => setPayload((state) => (state ? { ...state, models: index } : state))}
         onSetKey={setKey}
         onClearKey={clearKey}
         onFont={onFont}

@@ -27,7 +27,9 @@ const CONFIG_DEFAULTS = {
   contextLine: true,
   inboxDir: '',
   styleDir: '',
-  authModes: {}
+  authModes: {},
+  // How long a fetched model catalogue stays fresh before it is fetched again.
+  modelsTtlHours: 24
 }
 
 function ensureData() {

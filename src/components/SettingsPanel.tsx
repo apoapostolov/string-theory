@@ -9,7 +9,7 @@ import {
   Warning,
   X
 } from '@phosphor-icons/react'
-import type { ConfigPayload, FontMetrics, ModeId, ProviderInfo } from '../types'
+import type { ConfigPayload, FontMetrics, ModeId, ModelsIndex, ProviderInfo } from '../types'
 import { api } from '../lib/api'
 import { fontInstalled } from '../lib/metrics'
 import { ProviderAuth } from './ProviderAuth'
@@ -26,6 +26,20 @@ type Props = {
   onClearKey: (providerId: string) => Promise<void>
   onFont: (font: FontMetrics) => void
   onToast: (kind: 'ok' | 'error', message: string) => void
+  onModelsIndex: (index: ModelsIndex) => void
+}
+
+/** Fetching is also the health check, so the age is worth showing plainly. */
+function ageLabel(iso: string | null): string {
+  if (!iso) return 'never'
+  const then = Date.parse(iso)
+  if (!Number.isFinite(then)) return 'never'
+  const minutes = Math.round((Date.now() - then) / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 48) return `${hours}h ago`
+  return `${Math.round(hours / 24)}d ago`
 }
 
 const PASSES: Array<{ id: ModeId; label: string; hint: string }> = [
@@ -113,7 +127,8 @@ export function SettingsPanel({
   onSetKey,
   onClearKey,
   onFont,
-  onToast
+  onToast,
+  onModelsIndex
 }: Props) {
   const config = payload?.config
   const providers = payload?.providers ?? []
@@ -123,13 +138,11 @@ export function SettingsPanel({
   const [keyDraft, setKeyDraft] = useState('')
   const [promptDraft, setPromptDraft] = useState('')
   const [savingKey, setSavingKey] = useState(false)
-  const [models, setModels] = useState<string[]>([])
   const [modelsNote, setModelsNote] = useState('')
   const [fetching, setFetching] = useState(false)
   const [tab, setTab] = useState<'provider' | 'workspace'>('provider')
 
   useEffect(() => {
-    setModels([])
     setModelsNote('')
     setKeyDraft('')
   }, [active?.id])
@@ -173,13 +186,17 @@ export function SettingsPanel({
     }
   }
 
+  /**
+   * Ask the server for a fresh catalogue. The server caches it, and the answer is
+   * also the health check: a 200 means this credential works right now.
+   */
   async function fetchModels(key?: string) {
     if (!active) return
     setFetching(true)
     setModelsNote('')
     try {
       const result = await api.models(active.id, key)
-      setModels(result.models)
+      onModelsIndex(result.modelsIndex)
       setModelsNote(result.message)
       if (!config?.model && result.models[0]) await onPatch({ model: result.models[0] })
     } catch (error) {
@@ -192,7 +209,23 @@ export function SettingsPanel({
   const usage = payload?.usage
   const authMode = authModeFor(active?.id, payload)
   const keyOptions = authMode !== 'oauth'
-  const options = models.length ? models : (active?.models ?? [])
+  const cache = active ? payload?.models?.providers?.[active.id] : undefined
+  const cachedModels = cache?.models ?? []
+  // The curated array is a seed, never the answer: it goes stale the week it is
+  // written. A fetched catalogue replaces it, and the cache says when.
+  const options = cachedModels.length ? cachedModels : (active?.models ?? [])
+  // The listing doubles as a health check, so the copy separates a dead key from
+  // one that works for polishing but may not read the catalogue.
+  const cacheLine = !cache
+    ? 'Not fetched yet. Refresh asks the provider for its catalogue and proves the credential at the same time.'
+    : cache.ok
+      ? `${cache.count} models from ${active?.label ?? 'the provider'} · fetched ${ageLabel(cache.fetchedAt)} · refreshes every ${payload?.models?.ttlHours ?? 24}h`
+      : cache.state === 'limited'
+        ? `This credential works for polishing but may not read the model catalogue, so the curated list is shown.`
+        : cache.state === 'unreachable'
+          ? `Could not reach ${active?.label ?? 'the provider'} ${ageLabel(cache.checkedAt)}. Showing ${cache.fetchedAt ? 'the last good catalogue' : 'the curated list'}.`
+          : `The provider rejected this credential ${ageLabel(cache.checkedAt)}.`
+  const cacheTone = !cache || cache.ok || cache.state === 'limited' ? 'text-fg-faint' : 'text-near'
   const modelValue = config?.model ?? ''
   const titleId = useId()
   const dialogRef = useDialog<HTMLElement>(open, onClose)
@@ -356,27 +389,29 @@ export function SettingsPanel({
                     />
                   </Field>
 
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" onClick={() => void fetchModels()} disabled={fetching} className="h-7">
-                      <ArrowClockwise size={11} className={fetching ? 'animate-spin' : ''} />
-                      {fetching ? 'Fetching' : 'Fetch models'}
-                    </Button>
-                    {modelsNote ? (
-                      <span className="min-w-0 flex-1 text-[10.5px] leading-snug text-fg-faint">{modelsNote}</span>
-                    ) : null}
-                  </div>
-
                     </>
                   ) : null}
 
-                  <Field label="Model" hint="Pick from the catalogue, or type any model id the provider accepts.">
+                  <Field label="Model" hint="Pick from the provider's own catalogue, or type any model id it accepts.">
                     <div className="space-y-2">
+                      <div className="flex items-start gap-2.5">
+                        <Button size="sm" onClick={() => void fetchModels()} disabled={fetching} className="h-7 shrink-0">
+                          <ArrowClockwise size={11} className={fetching ? 'animate-spin' : ''} />
+                          {fetching ? 'Checking' : 'Refresh models'}
+                        </Button>
+                        <span
+                          className={`min-w-0 flex-1 pt-1.5 text-[10.5px] leading-relaxed ${cacheTone}`}
+                          title={cache && !cache.ok ? cache.error : undefined}
+                        >
+                          {modelsNote || cacheLine}
+                        </span>
+                      </div>
                       <select
                         value={options.includes(modelValue) ? modelValue : ''}
                         onChange={(event) => onPatch({ model: event.target.value })}
                         className={`${inputClass} w-full`}
                       >
-                        <option value="">{options.length ? 'Pick a model' : 'Fetch models first'}</option>
+                        <option value="">{options.length ? 'Pick a model' : 'Refresh models first'}</option>
                         {options.map((model) => (
                           <option key={model} value={model}>
                             {model}
@@ -454,6 +489,18 @@ export function SettingsPanel({
                         step={1}
                         value={String(config?.monthlyUsd ?? 0)}
                         onCommit={(value) => onPatch({ monthlyUsd: Number(value) || 0 })}
+                      />
+                    </Field>
+                    <Field
+                      label="Model catalogue age (hours)"
+                      hint="How long a fetched model list stays fresh. After that it is fetched again on the next load or refresh; 0 checks every time."
+                    >
+                      <DraftInput
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={String(config?.modelsTtlHours ?? 24)}
+                        onCommit={(value) => onPatch({ modelsTtlHours: Math.max(0, Number(value) || 0) })}
                       />
                     </Field>
                   </div>

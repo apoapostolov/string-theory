@@ -43,6 +43,17 @@ Verdicts are a left border and a tint: green fits, amber fits but reads badly at
 
 Fonts are measured as declared: family, size, weight and letter spacing, per file, with an optional per-string override for the panel title that is 16px inside a file of 14px labels.
 
+## Model catalogues
+
+A hardcoded model list is wrong the week it ships. Every provider publishes its own catalogue, so the app asks for it, caches the answer and asks again when the answer is stale:
+
+- **Fetched on demand and on change.** Saving a key, finishing a sign-in, or pointing a provider at another endpoint each pulls a fresh catalogue. A stale one (24 hours by default, adjustable in Settings) is re-fetched in the background the next time the app loads, so the picker rarely shows anything old.
+- **Cached on disk.** `data/models-cache.json` holds what each provider returned, when, and whether the last check passed. Cached lists survive restarts; the curated arrays in the server are only a seed for a provider that has never answered.
+- **The listing is the health check.** `GET /models` answers 200 only to a credential the provider accepts, so a successful fetch proves the key works. A failure is kept apart by cause: a 401 is a rejected credential, a 502 means the provider could not be reached, and a key that may chat but not read the catalogue — an OpenAI project key without `api.model.read`, for instance — is reported as limited instead of dead, with the curated list shown.
+- **Nothing is lost by a bad check.** A temporary failure keeps the last good catalogue; only a rejected credential clears it.
+
+![The model row: refresh, the age of the catalogue, then the picker](docs/app-models.png)
+
 ## Documents, beside the app
 
 An app's own strings are half of what a project says. The other half is prose: the README, the changelog, the release notes and the guides those link to. Nobody measures a paragraph, so that is where the worst writing survives longest.

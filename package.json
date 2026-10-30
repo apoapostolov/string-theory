@@ -34,7 +34,8 @@
     "typecheck": "tsc --noEmit",
     "check:contrast": "node scripts/check-contrast.mjs",
     "smoke:oauth": "node scripts/oauth-flow.mjs",
-    "test:changes": "node scripts/change-prompt.test.mjs"
+    "test:changes": "node scripts/change-prompt.test.mjs",
+    "test:models": "node scripts/models.test.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
