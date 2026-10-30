@@ -43,6 +43,24 @@ Verdicts are a left border and a tint: green fits, amber fits but reads badly at
 
 Fonts are measured as declared: family, size, weight and letter spacing, per file, with an optional per-string override for the panel title that is 16px inside a file of 14px labels.
 
+## Documents, beside the app
+
+An app's own strings are half of what a project says. The other half is prose: the README, the changelog, the release notes and the guides those link to. Nobody measures a paragraph, so that is where the worst writing survives longest.
+
+A project folder can hold both. Load any file in `inbox/<project>/` and every export beside it opens too, then a row of file names appears under the status filters:
+
+```
+Files   Internal 0/4   README.md 0/7   CHANGELOG.md 0/3   guide.md 0/2
+```
+
+![A project's README lane: the file bar, then paragraph rows](docs/app-docs.png)
+
+Internal is the app's strings. The rest are documents, ordered the way a reader meets them: the README first, then the changelog, then the release notes, then whatever the README links to, in link order. Each pill carries its own progress, and clicking one switches the list — the filters, the search and the tags stay put.
+
+A docs file declares `surface: "docs"` and carries no font, no wrap box and no budgets, because a document has no layout. Those rows get a tall paragraph box, the source paragraph above it for comparison, and character, word and length counts instead of fit meters; `Close to limit` and `Will wrap` are not shown on a lane that cannot wrap. Everything else works the same: tags, states, passes, the change prompt, and an export that writes the same shape back.
+
+The AI instructions in the app ask for both kinds of file: the app export, then one file per document with its order, so an agent that owns a repository can hand back a whole project at once.
+
 ## Large files
 
 A real app has thousands of strings, and rendering all of them is what makes a tool feel broken: every row carries a measured canvas, a textarea, three meters and its tags. The list is windowed instead. Only the rows around the viewport are mounted, each absolutely positioned inside a spacer as tall as the whole file, so the scrollbar stays honest and a jump to row 900 still lands.

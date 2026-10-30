@@ -6,6 +6,41 @@ The app exports its strings with an id, the line of UI each one appears in, and 
 
 Machine-readable contract: [`string-theory.schema.json`](string-theory.schema.json). Checker: `node scripts/validate-export.mjs <file>`. In-app reference: the **info** button in the header.
 
+## Two surfaces
+
+A project has two kinds of string, and they are two kinds of file.
+
+`surface: "app"` is the default: the application's own strings, each with a wrap box, because the layout can break. This is the file the rest of this document describes.
+
+`surface: "docs"` is the prose the project ships to its readers: the README, the changelog, the release notes, the guides those link to. A document has no layout, so a docs file carries **no font, no `maxPxPerLine`, no `maxLines` and no `maxChars`** — writing them would measure a paragraph against a button and fill the rail with false failures. The tool gives these rows a tall paragraph box and counts characters and words instead.
+
+```json
+{
+  "format": "string-theory/1",
+  "surface": "docs",
+  "source": "README.md",
+  "order": 0,
+  "title": "README.md",
+  "app": "Moo",
+  "strings": [
+    {
+      "id": "readme.install.1",
+      "text": "Download the release and open the archive.",
+      "where": "README.md › Install",
+      "tags": ["doc-list-item", "install"]
+    }
+  ]
+}
+```
+
+- `source` is the document's path in the repository, so `docs/guide.md`, not `guide.md`.
+- `order` puts the files in reading order: README 0, changelog 1, release notes 2, then the documents the README links to, in link order.
+- `title` is the name on the file pill. It falls back to `source`, then to the file name.
+- One row per heading, paragraph, bullet, table cell or link text. A paragraph stays one row.
+- Validation is the same command: a docs file that carries a budget is warned about, not tolerated.
+
+Loading a project means loading the folder: the app opens every export beside the one you clicked, so the internal strings and the documents describing them arrive together and appear as one lane each.
+
 ## Tags
 
 `tags` is a list of short names saying what the string does. One is enough; two or three make a string findable from both directions:

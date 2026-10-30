@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "string-theory/1",
   "title": "String Theory export",
-  "description": "One JSON file per application. Exports the app's own UI strings with a pixel budget so a human can rewrite them and the app can merge the rewrites back by id. Canonical form only: the loader also accepts documented aliases, but an exporter should emit exactly these names.",
+  "description": "One JSON file per surface. An app export carries the application's own UI strings with a pixel budget, so a human can rewrite them and the app can merge the rewrites back by id. A docs export carries the prose a project ships to its readers — README, changelog, release notes, guides — with no font and no budgets. Canonical form only: the loader also accepts documented aliases, but an exporter should emit exactly these names.",
   "oneOf": [
     {
       "$ref": "#/$defs/envelope"
@@ -31,6 +31,28 @@
         "context": {
           "type": "string",
           "description": "One line about the screen or feature, sent with every AI prompt."
+        },
+        "surface": {
+          "type": "string",
+          "enum": [
+            "app",
+            "docs"
+          ],
+          "default": "app",
+          "description": "What kind of file this is. `app` holds the application's own UI strings and carries a layout. `docs` holds the prose a project ships: README, changelog, release notes, guides. A docs file has no font and no pixel or character budgets."
+        },
+        "source": {
+          "type": "string",
+          "description": "For a docs file: the document path inside the repository, such as \"README.md\" or \"docs/guide.md\"."
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "For a docs file: lane order inside the project. README 0, changelog 1, release notes 2, then the documents the README links to, in link order."
+        },
+        "title": {
+          "type": "string",
+          "description": "For a docs file: the name shown on the file pill, such as \"README.md\"."
         },
         "font": {
           "$ref": "#/$defs/font"

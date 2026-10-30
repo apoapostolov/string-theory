@@ -69,6 +69,27 @@ export const TAG_GROUPS = [
       ['count', 'Count']
     ]
   },
+  // Documents: the prose a project ships to its readers. Same vocabulary, other
+  // surface: a README, a changelog or a release note has no box to fit, so these
+  // strings are judged by the sentence.
+  {
+    id: 'docs',
+    label: 'Documents',
+    tags: [
+      ['doc-lead', 'Document lead'],
+      ['doc-paragraph', 'Document paragraph'],
+      ['doc-heading', 'Document heading'],
+      ['doc-list-item', 'Document list item'],
+      ['doc-table-cell', 'Document table cell'],
+      ['doc-link-text', 'Document link text'],
+      ['doc-note', 'Document note'],
+      ['doc-code-caption', 'Document code caption'],
+      ['changelog-entry', 'Changelog entry'],
+      ['release-title', 'Release title'],
+      ['release-body', 'Release body'],
+      ['migration-note', 'Migration note']
+    ]
+  },
   {
     id: 'navigation',
     label: 'Navigation',

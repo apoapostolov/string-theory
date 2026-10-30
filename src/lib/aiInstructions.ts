@@ -105,18 +105,72 @@ Rules the file has to keep to:
 7. Absolute pixels only, measured in the app's own font. Do not estimate from character counts and do not substitute a font the app does not render with.
 8. Older field names still load (maxPx, PIL, maxWidth for maxPxPerLine; lines for maxLines; maxLength for maxChars) and a bare array loads too, but write the envelope above so the font travels with the file.
 
+Then the second half of the job: the project's own prose.
+
+The file above is the app speaking to its users. The project also speaks about itself, in documents a player, a user or a contributor reads: the README, the changelog, the latest release notes and the guides those link to. Those paragraphs are where sloppy language lives longest, because nobody measures them and everybody writes them in a hurry. Give them their own exports, one file per document, beside the app export in the same folder.
+
+Write them here:
+
+  <the same inbox folder as the app export>\\README.md -> readme.strings.json
+  ...\\CHANGELOG.md -> changelog.strings.json
+  ...\\<doc-slug>.strings.json for every further document
+
+Cover, in this order:
+1. README.md, order 0.
+2. CHANGELOG.md, order 1.
+3. The latest release notes, order 2: the newest release body from the repository's releases, or the newest section of the changelog when there are no releases.
+4. Every further document a reader is meant to read, in the order the README links to them, numbered from 3 upward: guides, docs/*.md, FAQ, getting started, contributing where it explains the product. Skip links to a licence, a code of conduct, an issue tracker, a chat server, a download, and anything that leaves the repository.
+
+A docs file has no layout, so it carries no font, no maxPxPerLine, no maxLines and no maxChars. Do not invent them and do not copy them from the app export: a README paragraph is not measured against a button, and pretending otherwise produces a file full of false failures. Its box in the tool is tall, because the string is often a whole paragraph.
+
+One row per heading, paragraph, bullet, table cell, link text or code caption, never one row per sentence. A five-hundred-word README produces dozens of rows, not five.
+
+{
+  "format": "string-theory/1",
+  "surface": "docs",
+  "source": "README.md",
+  "order": 0,
+  "title": "README.md",
+  "app": "${app}",
+  "strings": [
+    {
+      "id": "readme.intro.1",
+      "text": "<the paragraph exactly as it reads today>",
+      "where": "README.md › <heading> › <subheading>",
+      "tags": ["doc-lead", "intro"]
+    }
+  ]
+}
+
+- source is the document's path inside the repository, exactly as a reader would find it, so docs/guide.md not guide.md.
+- order is 0 for the README, 1 for the changelog, 2 for the release notes, then the README's links in link order.
+- id is stable and readable: document, heading, number. Never the first words of the paragraph, which change the moment the paragraph does.
+- where is the heading path, so the passage can be found again by a person.
+- tags start with a role from the documents group, then a group per section: docs: doc-lead, doc-paragraph, doc-heading, doc-list-item, doc-table-cell, doc-link-text, doc-note, doc-code-caption, changelog-entry, release-title, release-body, migration-note. Then group by section: install, usage, privacy, faq, and so on.
+
+What belongs in text and what does not:
+- Prose only. Skip code blocks, badges, shields, image alt text, HTML comments, front matter and link targets.
+- Keep a paragraph whole and keep its markdown emphasis, links and \`code\` spans: **bold** stays bold, [text](url) stays a link, \`npm start\` stays code. A rewrite that strips them has changed the document.
+- A heading's text is the heading without its #, ## or ### markers.
+- A bullet's text is the bullet without its marker, and it stays a single row even when it wraps in the source.
+
 Validate before handing over, and again after any fix:
 
   node scripts/validate-export.mjs "<the file you wrote>"
 
 Exit code 0 means valid; anything else prints the repairs, and --strict makes warnings fail. A warning that the file matches the demo catalogue means the first step was skipped; a warning that strings carry no tag means the tag list above was skipped.
 
+A project is several files, so validate every one you wrote, the app export and each docs file, with --strict so a warning is not ignored:
+
+  node scripts/validate-export.mjs "<each file>" --strict
+
 Then report, in this shape:
-- the absolute path you wrote, checked against the one above
-- how many rows the file has, against how many strings the source of truth holds
-- which files or folders you read them from
-- the tags you used, and how many strings carry each
-- every string or screen you left out, and why
+- the absolute path you wrote for the app export, checked against the one above, and its row count against how many strings the source of truth holds
+- one line per document: path, row count, order, and the headings it covers
+- the README links you followed, in order, and the ones you skipped with the reason
+- which files or folders you read the strings from
+- the tags you used across all the files, and how many strings carry each
+- every string, screen or document you left out, and why
 
 String Theory picks the file up from its inbox without a restart.`
 }

@@ -42,6 +42,45 @@ export function estimateChars(font, maxPx) {
 export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt }) {
   const setting = getMode(mode)
   const tags = Array.isArray(item.tags) ? item.tags.filter((tag) => typeof tag === 'string' && tag) : []
+  // Prose has no box to fit: a README paragraph is judged by the sentence.
+  if (item.surface === 'docs') {
+    const system = [
+      `You rewrite the documentation a software project ships to its readers${app ? `, for the project ${app}` : ''}.`,
+      '',
+      'Return exactly one replacement passage and nothing else: no quotes, no markdown fences, no label, no explanation.',
+      '',
+      'Rules:',
+      '- Keep every fact, number, version and claim that the original makes. Add none.',
+      '- Copy links, paths, commands, flags, env vars and product names byte for byte.',
+      '- Keep the structure: one paragraph stays one paragraph, a bullet stays a bullet, a newline stays a newline.',
+      '- Plain declarative sentences. No marketing voice, no exclamation marks, no "simply", "just", "seamlessly", "powerful".',
+      '- Cut filler and hedging, merge sentences that repeat themselves, and keep the reader’s next action in view.',
+      item.where ? `- The passage sits here: ${item.where}.` : null,
+      tags.length
+        ? `- Its role is ${tags[0]}${tags.length > 1 ? `, grouped as ${tags.slice(1).join(', ')}` : ''}. Write it the way that role expects: a lead opens, a paragraph explains, a bullet states one thing.`
+        : null,
+      item.note ? `- Context from the export: ${item.note}` : null,
+      contextLine && item.appContext ? `- Project context: ${item.appContext}` : null,
+      extraPrompt ? `- Extra instruction from the operator: ${extraPrompt}` : null,
+      '- If the passage already reads well, return it unchanged.',
+      '',
+      `Task for this pass: ${setting.id === 'grammar' ? 'Correct grammar, spelling, punctuation and capitalisation only. Keep the wording.' : 'Rewrite the passage so it reads better: clearer, tighter, honest. Same meaning, same facts, same structure.'}`
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    const user = [
+      `id: ${item.id}`,
+      tags.length ? `tags: ${tags.join(', ')}` : null,
+      item.where ? `sits at: ${item.where}` : null,
+      `current: ${item.text}`,
+      `length: ${item.text.length} characters, ${item.text.trim().split(/\s+/).length} words`
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    return { system, user, temperature: setting.temperature, perChar: 0, hard: 0, comfortable: 0, prose: true }
+  }
   const perLine = item.maxPxPerLine ?? item.maxPx ?? 200
   const maxLines = Math.max(1, Number(item.maxLines) || 1)
   // A character budget for the whole string: every line gets the same box.

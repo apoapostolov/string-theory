@@ -24,6 +24,8 @@ export type PolishRequest = {
     tags?: string[]
     note?: string
     appContext?: string
+    /** `docs` when the row is prose: the prompt drops every pixel rule. */
+    surface?: 'app' | 'docs'
   }
   mode?: ModeId
   app?: string

@@ -33,6 +33,12 @@ const MAX_CHARS_KEYS = ['maxChars', 'max_chars', 'maxLength', 'max_length', 'cha
 const TAG_KEYS = ['tags', 'tag', 'categories', 'category', 'kinds']
 const NOTE_KEYS = ['note', 'notes', 'comment']
 const PX_KEYS = ['px', 'pil', 'PIL', 'width', 'measuredPx', 'measured_px']
+// A file is either the app's own strings or the prose a project ships to its
+// readers. Documents have no layout, so they carry no font and no budget.
+const SURFACE_KEYS = ['surface', 'surfaceType', 'surface_type', 'docKind', 'documentKind']
+const DOC_SOURCE_KEYS = ['source', 'docPath', 'doc_path', 'documentPath', 'document_path', 'path']
+const DOC_ORDER_KEYS = ['order', 'position', 'sequence', 'rank']
+const DOC_TITLE_KEYS = ['title', 'documentTitle', 'label']
 const FONT_KEYS = ['font', 'textFont', 'text_font', 'typography']
 
 function pick(source, keys) {
@@ -146,7 +152,22 @@ export function parseExport(raw, name) {
   const list = entriesOf(raw)
   const app = str(envelope.app ?? envelope.application ?? envelope.product ?? envelope.project ?? '')
   const context = str(envelope.context ?? envelope.screen ?? envelope.feature ?? '')
-  const font = readFont(envelope.font ?? envelope.metrics ?? envelope.typography, issues)
+  const declaredSurface = str(pick(envelope, SURFACE_KEYS)).trim().toLowerCase()
+  const docs = ['docs', 'doc', 'document', 'documentation', 'prose', 'markdown', 'md'].includes(declaredSurface)
+  const surface = docs ? 'docs' : 'app'
+  const docSource = str(pick(envelope, DOC_SOURCE_KEYS)).trim()
+  const orderRaw = num(pick(envelope, DOC_ORDER_KEYS))
+  const docOrder = orderRaw === null ? null : Math.trunc(orderRaw)
+  const docTitle = str(pick(envelope, DOC_TITLE_KEYS)).trim() || docSource.split('/').pop() || ''
+  const font = docs ? { ...DEFAULT_FONT } : readFont(envelope.font ?? envelope.metrics ?? envelope.typography, issues)
+
+  if (docs && !docSource) {
+    issues.push({
+      level: 'warn',
+      code: 'no-source',
+      message: 'A docs file should say which document it came from, as `source: "README.md"`. Without it the lane has only a file name.'
+    })
+  }
   const defaultMaxPx = num(
     envelope.defaultMaxPxPerLine ??
       envelope.default_max_px_per_line ??
@@ -175,6 +196,7 @@ export function parseExport(raw, name) {
   let longText = 0
   let badTags = 0
   let noTags = 0
+  let docBudgets = 0
 
   list.forEach((entry, index) => {
     if (typeof entry === 'string') {
@@ -209,7 +231,7 @@ export function parseExport(raw, name) {
     const baseId = rawId || `string.${index + 1}`
     if (!rawId) syntheticIds += 1
     if (!text) emptyText += 1
-    if (text.length > 2000) longText += 1
+    if (text.length > (docs ? 40000 : 2000)) longText += 1
 
     const count = (seen.get(baseId) ?? 0) + 1
     seen.set(baseId, count)
@@ -221,16 +243,24 @@ export function parseExport(raw, name) {
       badMaxPx += 1
       maxPxPerLine = null
     }
-    if (maxPxPerLine === null) maxPxPerLine = defaultMaxPx && defaultMaxPx > 0 ? defaultMaxPx : null
+    if (!docs && maxPxPerLine === null) maxPxPerLine = defaultMaxPx && defaultMaxPx > 0 ? defaultMaxPx : null
 
     const linesValue = num(pick(entry, LINES_KEYS))
     let maxLines = 1
     if (linesValue !== null) {
-      if (!Number.isInteger(linesValue) || linesValue < 1 || linesValue > 20) badMaxLines += 1
-      else maxLines = linesValue
+      if (!Number.isInteger(linesValue) || linesValue < 1 || linesValue > 20) {
+        if (!docs) badMaxLines += 1
+      } else maxLines = linesValue
+    }
+    // Prose has no wrap box and no line allowance: it is measured by the word.
+    // A zero here is this tool's own way of saying "no allowance", not a budget.
+    if (docs) {
+      if ((lineValue !== null && lineValue > 0) || (linesValue !== null && linesValue > 0)) docBudgets += 1
+      maxPxPerLine = null
+      maxLines = 0
     }
 
-    const totalValue = num(pick(entry, TOTAL_PX_KEYS))
+    const totalValue = docs ? null : num(pick(entry, TOTAL_PX_KEYS))
     if (totalValue !== null && totalValue <= 0) badMaxPx += 1
     const cleanTotal = totalValue !== null && totalValue > 0 ? totalValue : null
     const derivedTotal = maxPxPerLine ? maxPxPerLine * maxLines : null
@@ -242,6 +272,10 @@ export function parseExport(raw, name) {
     let maxChars = charsRaw
     if (charsRaw !== null && (charsRaw < 1 || !Number.isFinite(charsRaw))) {
       badMaxChars += 1
+      maxChars = null
+    }
+    if (docs) {
+      if (charsRaw !== null && charsRaw > 0) docBudgets += 1
       maxChars = null
     }
 
@@ -356,7 +390,15 @@ export function parseExport(raw, name) {
     })
   }
 
-  const unconstrained = rows.filter((row) => !row.maxPxPerLine).length
+  if (docBudgets) {
+    issues.push({
+      level: 'warn',
+      code: 'docs-budgets',
+      message: 'A docs file has no layout, so the pixel and character budgets in it were ignored. Drop them; prose is judged by the sentence, not the box.'
+    })
+  }
+
+  const unconstrained = docs ? 0 : rows.filter((row) => !row.maxPxPerLine).length
   if (rows.length && unconstrained === rows.length) {
     issues.push({
       level: 'warn',
@@ -373,10 +415,14 @@ export function parseExport(raw, name) {
 
   return {
     name,
-    app: app || name.replace(/\.json$/i, ''),
+    app: app || docTitle || name.replace(/\.json$/i, ''),
     context,
     font,
     version,
+    surface,
+    source: docSource,
+    order: docOrder,
+    title: docs ? docTitle || name.replace(/\.json$/i, '') : '',
     rows,
     issues
   }

@@ -30,6 +30,7 @@ const ENVELOPE: Array<[string, string, string, string]> = [
   ['format', 'string', 'optional', 'string-theory/1. An unknown value loads with a warning and the v1 rules.'],
   ['app', 'string', 'recommended', 'Application name. Shown in the header, used for the export filename.'],
   ['context', 'string', 'optional', 'One line about the screen or feature. Sent with every AI prompt.'],
+  ['surface', 'string', 'optional', '`app` for the application\'s own strings, `docs` for the prose a project ships. A docs file has no font and no budgets.'],
   ['font', 'object', 'required', 'The font the pixel figures mean. Required for correct numbers: without it the tool falls back to 14px system text and says so.'],
   ['defaultMaxPxPerLine', 'number', 'optional', 'Line budget for strings that do not carry their own.'],
   ['strings', 'array', 'required', 'The strings. A bare array also loads.']
@@ -44,6 +45,8 @@ const FIELDS: Array<[string, string, string, string]> = [
   ['maxPxTotal', 'number', 'optional', 'maxPxPerLine x maxLines. Recomputed when it disagrees.'],
   ['font', 'object', 'optional', 'Override for a string that is not in the file font, for example a 16px title.'],
   ['maxChars', 'number', 'optional', 'Character ceiling, only when the app enforces one itself.'],
+  ['source', 'string', 'docs only', 'The document path inside the repository, such as README.md.'],
+  ['order', 'number', 'docs only', 'Lane order: README 0, changelog 1, release notes 2, then the README links.'],
   ['tags', 'string[]', 'recommended', 'What the string does: heading, button, hint, plus grouping tags such as settings. The tag rail is built from these.'],
   ['note', 'string', 'optional', 'A free sentence of context. It carries no rewrite.'],
   ['state', 'string', 'output', 'normal, wip or done. Written by the tool; importers may ignore it.']

@@ -126,6 +126,15 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - A format change touches `docs/format.md`, the schema, `FormatSpec` and this prompt in the same commit. `scripts/validate-export.mjs` is the arbiter: an export produced from the prompt must exit 0 or the prompt is wrong.
 - The instructions open from two places on purpose: the inbox empty state, and an AI Instructions button in the picker header, which must work when files are already present.
 
+## Two surfaces
+
+- A file is either `surface: "app"` (the default) or `surface: "docs"`. Never mix them: a docs row has no wrap box, and a budget on one is a warning, not a convenience.
+- `shared/parse-export.mjs` strips budgets on a docs file and reports it once (`docs-budgets`), because measuring a paragraph against a button manufactures failures. Docs rows keep `maxPxPerLine: null` and `maxLines: 0`.
+- `src/lib/lanes.ts` orders the lanes: internal first, then `order` (README 0, changelog 1, release notes 2, then the README's links), then label. The order is data from the file, never guessed from the name.
+- Opening a file opens its folder. `loadInboxFile` collects every export in the same group and commits one library write: adding docs one at a time let each activation flush the previous document into a library that did not contain it yet, which silently dropped the first file of every project.
+- Prose rows are `src/components/DocsRow.tsx` (with `RowBits` for the glyph and pass control). They show the source paragraph, a tall textarea, and chars/words; no meters, no orphan rule, no fit filter.
+- The polish prompt branches on `item.surface`: prose gets a paragraph instruction and never hears about pixels or the 40% last-line law.
+
 ## Windowing
 
 - `src/lib/useVirtualRows.ts` renders only the rows around the viewport inside a spacer of the full height. Never render the whole list to fix a scrolling bug; fix the window.

@@ -54,6 +54,10 @@ if (!list) {
   add('error', '$', 'no strings array: expected { strings: [...] } or a bare array')
 }
 
+const SURFACES = ['docs', 'doc', 'document', 'documentation', 'prose', 'markdown', 'md']
+const declaredSurface = envelope ? String(envelope.surface ?? envelope.surfaceType ?? envelope.docKind ?? '').trim().toLowerCase() : ''
+const isDocs = SURFACES.includes(declaredSurface)
+
 if (envelope) {
   const declared = envelope.format ?? envelope.schemaVersion ?? envelope.version
   if (declared !== undefined) {
@@ -66,9 +70,27 @@ if (envelope) {
   }
   if (envelope.context !== undefined && typeof envelope.context !== 'string') add('error', 'context', 'must be a string')
 
-  if (envelope.font === undefined) {
+  if (isDocs) {
+    // A document has no layout: it is scored by the paragraph, not the box.
+    if (envelope.source !== undefined && typeof envelope.source !== 'string') {
+      add('error', 'source', 'must be the document path, such as "README.md"')
+    } else if (!envelope.source) {
+      add('warn', 'source', 'missing: the lane falls back to the file name instead of the document it came from')
+    }
+    if (envelope.order !== undefined && (!Number.isInteger(envelope.order) || envelope.order < 0)) {
+      add('error', 'order', 'must be a whole number from 0: README 0, changelog 1, then the README links in order')
+    }
+    if (envelope.font !== undefined) {
+      add('warn', 'font', 'a docs file has no layout; drop the font so nobody measures prose in it')
+    }
+    if (envelope.defaultMaxPx !== undefined || envelope.defaultMaxPxPerLine !== undefined) {
+      add('warn', 'defaultMaxPx', 'a docs file is not measured against a box; drop the budget')
+    }
+  }
+
+  if (!isDocs && envelope.font === undefined) {
     add('warn', 'font', 'missing: the tool falls back to 14px system text, so every budget is an estimate')
-  } else {
+  } else if (!isDocs) {
     const font = envelope.font
     if (!font || typeof font !== 'object' || Array.isArray(font)) add('error', 'font', 'must be an object')
     else {
@@ -132,7 +154,7 @@ if (list) {
 
     if (typeof text !== 'string') add('error', `${path}.text`, 'required string')
     else if (!text.trim()) add('warn', `${path}.text`, 'empty string')
-    else if (text.length > 2000) add('warn', `${path}.text`, `${text.length} characters: that is body copy, not a UI string`)
+    else if (text.length > (isDocs ? 40000 : 2000)) add('warn', `${path}.text`, `${text.length} characters: that is body copy, not a UI string`)
 
     if (entry.where !== undefined && typeof entry.where !== 'string') add('error', `${path}.where`, 'must be a string')
     if (!entry.where) missingWhere += 1
@@ -140,7 +162,8 @@ if (list) {
     const maxPx = entry.maxPxPerLine ?? entry.maxPx ?? entry.maxPIL ?? entry.pilMax
     if (maxPx !== undefined) {
       if (typeof maxPx !== 'number' || !(maxPx > 0)) add('error', `${path}.maxPxPerLine`, 'must be a number greater than zero')
-    } else if (defaultBudget === undefined) {
+      else if (isDocs) add('warn', `${path}.maxPxPerLine`, 'a docs file has no wrap box; drop the budget')
+    } else if (defaultBudget === undefined && !isDocs) {
       missingBudget += 1
     }
 
@@ -219,7 +242,7 @@ if (list) {
   } else if (untagged) {
     add('warn', 'strings', `${untagged} of ${list.length} strings carry no tag`)
   }
-  if (missingWhere && missingWhere === list.length) {
+  if (missingWhere && missingWhere === list.length && !isDocs) {
     add('warn', 'strings', 'no where line anywhere: the operator loses the "where is this shown" context')
   }
 }

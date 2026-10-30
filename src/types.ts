@@ -46,8 +46,13 @@ export type ImportIssue = {
     | 'bad-tags'
     | 'no-tags'
     | 'long-text'
+    | 'no-source'
+    | 'docs-budgets'
   message: string
 }
+
+/** The app's own strings, or the prose the project ships to its readers. */
+export type Surface = 'app' | 'docs'
 
 export type ParsedFile = {
   name: string
@@ -56,6 +61,13 @@ export type ParsedFile = {
   font: FontMetrics
   /** Format id the file claims, or the one this build assumes. */
   version: string
+  /** App strings carry a layout; documents carry none. */
+  surface: Surface
+  /** For a docs file, the document it was taken from, such as `README.md`. */
+  source: string
+  /** Lane order inside a project: README 0, changelog 1, then the README's links. */
+  order: number | null
+  title: string
   rows: ParsedRow[]
   /** Everything the import had to repair, in the order a reader wants it. */
   issues: ImportIssue[]
@@ -79,6 +91,10 @@ export type FileMeta = {
   font: FontMetrics
   /** Format id the file claims, or the one this build assumes. */
   version: string
+  surface: Surface
+  source: string
+  order: number | null
+  title: string
   /** Everything the import had to repair. */
   issues: ImportIssue[]
 }
@@ -92,6 +108,10 @@ export type InboxEntry = {
   mtime: number
   app: string
   version: string
+  surface: Surface
+  source: string
+  order: number | null
+  title: string
   count: number
   errors: number
   warnings: number

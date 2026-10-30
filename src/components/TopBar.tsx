@@ -129,12 +129,16 @@ type FilterBarProps = {
   fitCounts: Record<Fit, number>
   total: number
   showAllHint?: string
+  /** A document lane: no wrap box, so the fit filters would always count zero. */
+  prose?: boolean
 }
 
-export function FilterBar({ filter, onFilter, counts, fitCounts, total, showAllHint }: FilterBarProps) {
+export function FilterBar({ filter, onFilter, counts, fitCounts, total, showAllHint, prose = false }: FilterBarProps) {
+  // A document has no wrap box, so a fit filter there would only ever read zero.
+  const filters = prose ? FILTERS.filter((entry) => entry.id !== 'near' && entry.id !== 'over') : FILTERS
   return (
     <div role="group" aria-label="Filter strings" className="flex h-10 shrink-0 items-center gap-1 border-b border-line px-3">
-      {FILTERS.map((entry) => {
+      {filters.map((entry) => {
         const active = filter === entry.id
         const value =
           entry.id === 'over' ? fitCounts.over : entry.id === 'near' ? fitCounts.near : counts[entry.id]

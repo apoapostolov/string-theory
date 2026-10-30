@@ -32,6 +32,8 @@ import { StylePanel } from './components/StylePanel'
 import { Toasts, type Toast } from './components/Toasts'
 import { TagBar, type TagCount } from './components/TagBar'
 import { ChangePrompt } from './components/ChangePrompt'
+import { LaneBar } from './components/LaneBar'
+import { lanesFor } from './lib/lanes'
 import { useVirtualRows } from './lib/useVirtualRows'
 import { customTagsIn, isStandardTag, normalizeTag, tagLabel } from './lib/tags'
 import { Button } from './components/Button'
@@ -91,6 +93,10 @@ function metaOf(parsed: ParsedFile): FileMeta {
     context: parsed.context,
     font: parsed.font,
     version: parsed.version,
+    surface: parsed.surface ?? 'app',
+    source: parsed.source ?? '',
+    order: parsed.order ?? null,
+    title: parsed.title ?? '',
     issues: parsed.issues as ImportIssue[]
   }
 }
@@ -338,31 +344,71 @@ export default function App() {
 
   // ------------------------------------------------------------ loading
 
+  /**
+   * Opens a project: the file that was clicked and every export beside it,
+   * because the app's strings and the prose that describes them are one project
+   * and reading both is the point of the file bar.
+   *
+   * The documents are collected first and committed in one library write. Adding
+   * them one at a time let each activation flush the previous document back into
+   * a library object that did not yet contain the one before it, which silently
+   * dropped the first file of every project.
+   */
   const loadInboxFile = useCallback(
     async (entry: InboxEntry) => {
-      const id = `inbox:${entry.id}`
-      const existing = libraryRef.current.docs[id]
-      if (existing) {
-        activate(id)
-        return
-      }
+      const project = entry.group || ''
+      const siblings = (inbox?.files ?? []).filter(
+        (file) => (file.group || '') === project && !file.broken && (project !== '' || file.id === entry.id)
+      )
+      const queue = siblings.length ? siblings : [entry]
       setBusyId(entry.id)
       try {
-        const file = await api.openInboxFile(entry.id)
-        const parsed = parseExport(file.json, file.name)
-        if (!parsed.rows.length) {
-          pushToast('error', `${file.name} has no strings to show.`)
+        const loaded: DocumentRecord[] = []
+        for (const file of queue) {
+          const fileId = `inbox:${file.id}`
+          if (libraryRef.current.docs[fileId]) continue
+          try {
+            const payload = await api.openInboxFile(file.id)
+            const parsed = parseExport(payload.json, payload.name)
+            if (!parsed.rows.length) continue
+            loaded.push(documentFrom(parsed, fileId, 'inbox', file.id))
+          } catch (error) {
+            pushToast('error', `${file.name}: ${(error as Error).message}`)
+          }
+        }
+
+        const docs = { ...flushActive() }
+        for (const doc of loaded) docs[doc.id] = doc
+
+        const clicked = `inbox:${entry.id}`
+        const target =
+          loaded.find((doc) => doc.meta.surface === 'app')?.id ??
+          (docs[clicked] ? clicked : loaded[0]?.id) ??
+          null
+
+        if (!target) {
+          pushToast('error', `Nothing to open in ${project || 'that file'}.`)
           return
         }
-        adoptDoc(documentFrom(parsed, id, 'inbox', entry.id))
-        pushToast('ok', `${parsed.rows.length} strings from ${parsed.app}`)
-      } catch (error) {
-        pushToast('error', (error as Error).message)
+
+        setLibrary({ activeId: target, docs })
+        setMeta(docs[target].meta)
+        setRows(revive(docs[target].rows))
+        setFilter('all')
+        setQuery('')
+        setReportOpen(true)
+        jumpCursor.current = 0
+
+        const docCount = queue.filter((file) => docs[`inbox:${file.id}`]).length
+        const prose = queue.filter((file) => docs[`inbox:${file.id}`]?.meta.surface === 'docs').length
+        if (docCount > 1) {
+          pushToast('ok', `Opened ${docCount} files${prose ? ` · ${prose} of them prose` : ''}`)
+        }
       } finally {
         setBusyId(null)
       }
     },
-    [activate, adoptDoc, pushToast]
+    [flushActive, inbox, pushToast]
   )
 
   const loadFromFile = useCallback(
@@ -499,7 +545,8 @@ export default function App() {
             maxLines: row.maxLines,
             maxChars: row.maxChars,
             px: measurePx(row.text, row.font ?? current.font),
-            appContext: current.context
+            appContext: current.context,
+            surface: current.surface ?? 'app'
           },
           mode,
           app: current.app,
@@ -524,11 +571,15 @@ export default function App() {
 
   const warnRatio = payload?.config.warnRatio ?? 0.9
 
+  const isDocs = meta?.surface === 'docs'
+
   const decorated = useMemo(() => {
     return rows.map((row) => {
       const rowFont = row.font ?? meta?.font ?? DEFAULT_FONT
       const wrap = wrapText(row.text, row.maxPxPerLine, rowFont)
-      const pxFit = wrapFit(wrap, { maxPxPerLine: row.maxPxPerLine, maxLines: row.maxLines }, warnRatio)
+      const pxFit = isDocs
+        ? { fit: 'none' as const, leak: false, lastRatio: 0, lines: wrap.lines.length, maxLines: 0, widest: 0, overBy: 0, tooManyLines: false }
+        : wrapFit(wrap, { maxPxPerLine: row.maxPxPerLine, maxLines: row.maxLines }, warnRatio)
       const chFit = charFit(row.text.length, row.maxChars, pxFit.fit, warnRatio)
       return {
         row,
@@ -539,7 +590,7 @@ export default function App() {
         changed: row.text !== row.source
       }
     })
-  }, [rows, meta, warnRatio])
+  }, [rows, meta, warnRatio, isDocs])
 
   const counts = useMemo(() => {
     const base: Record<FilterId, number> = { all: decorated.length, normal: 0, wip: 0, done: 0, near: 0, over: 0 }
@@ -674,27 +725,40 @@ export default function App() {
 
   const currentSource = docSummaries.find((doc) => doc.id === library.activeId) ?? null
 
+  // Every file of the active project, in reading order: internal, README,
+  // changelog, then whatever the README links to.
+  const lanes = useMemo(() => lanesFor(library.docs, library.activeId), [library.docs, library.activeId])
+
   // ------------------------------------------------------------ export
 
   const exportObject = useCallback(() => {
     const current = metaRef.current
     if (!current) return null
     const list = rowsRef.current
+    const docsFile = current.surface === 'docs'
     return {
       format: 'string-theory/1',
       app: current.app,
+      ...(docsFile
+        ? { surface: 'docs', source: current.source, order: current.order ?? undefined, title: current.title || undefined }
+        : {}),
       exportedAt: new Date().toISOString(),
-      font: current.font,
+      ...(docsFile ? {} : { font: current.font }),
       changed: list.filter((row) => row.text !== row.source).length,
       strings: list.map((row) => ({
         id: row.id,
         text: row.text,
         previous: row.source,
         where: row.where,
-        maxPxPerLine: row.maxPxPerLine,
-        maxLines: row.maxLines,
-        maxPxTotal: row.maxPxTotal,
-        maxChars: row.maxChars,
+        // A document has no layout, so its rows carry no layout fields at all.
+        ...(docsFile
+          ? {}
+          : {
+              maxPxPerLine: row.maxPxPerLine,
+              maxLines: row.maxLines,
+              maxPxTotal: row.maxPxTotal,
+              maxChars: row.maxChars
+            }),
         tags: row.tags ?? [],
         ...(row.note ? { note: row.note } : {}),
         ...(row.font ? { font: row.font } : {}),
@@ -711,7 +775,11 @@ export default function App() {
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `${slug(metaRef.current.app)}.rewritten.json`
+    const current = metaRef.current
+    anchor.download =
+      current.surface === 'docs'
+        ? `${slug(current.title || current.source || current.app)}.rewritten.json`
+        : `${slug(current.app)}.rewritten.json`
     anchor.click()
     URL.revokeObjectURL(url)
     pushToast('ok', `Exported ${data.strings.length} strings`)
@@ -822,7 +890,7 @@ export default function App() {
           />
         }
         count={rows.length}
-        font={meta?.font ?? null}
+        font={meta?.surface === 'docs' ? null : (meta?.font ?? null)}
         query={query}
         onQuery={setQuery}
         provider={provider}
@@ -847,7 +915,12 @@ export default function App() {
           counts={counts.base}
           fitCounts={counts.fitCounts}
           total={rows.length}
+          prose={isDocs}
         />
+      ) : null}
+
+      {hasFile ? (
+        <LaneBar lanes={lanes} activeId={library.activeId} onPick={activate} />
       ) : null}
 
       {hasFile ? (
@@ -915,6 +988,7 @@ export default function App() {
                         onToggleTag={toggleRowTag}
                         onFilterTag={toggleTag}
                         even={index % 2 === 1}
+                        docs={isDocs}
                         setsize={visible.length}
                         posinset={index + 1}
                       />
