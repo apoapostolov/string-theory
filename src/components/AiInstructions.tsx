@@ -21,11 +21,12 @@ export function AiInstructions({ open, onClose, inboxDir, defaultApp, onToast }:
   const dialogRef = useDialog<HTMLDivElement>(open, onClose)
   const [copied, setCopied] = useState(false)
   const [app, setApp] = useState(defaultApp ?? '')
+  const [projectRoot, setProjectRoot] = useState('')
 
   if (!open) return null
 
   const named = app.trim() || undefined
-  const prompt = aiInstructions({ inboxDir, app: named })
+  const prompt = aiInstructions({ inboxDir, app: named, projectRoot })
   const target = instructionTarget({ inboxDir, app: named })
 
   async function copy() {
@@ -70,16 +71,28 @@ export function AiInstructions({ open, onClose, inboxDir, defaultApp, onToast }:
         </div>
 
         <div className="space-y-2 border-b border-line px-5 py-3">
-          <label className="block">
-            <span className="text-[10px] tracking-[0.07em] text-fg-faint uppercase">App the prompt is about</span>
-            <input
-              value={app}
-              onChange={(event) => setApp(event.target.value)}
-              placeholder="name of the project the agent should read"
-              spellCheck={false}
-              className="mt-1 w-full rounded-md border border-line bg-ink-850 px-2.5 py-1.5 text-[12px] text-fg outline-none placeholder:text-fg-faint/60 focus:border-line-strong"
-            />
-          </label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-[10px] tracking-[0.07em] text-fg-faint uppercase">App</span>
+              <input
+                value={app}
+                onChange={(event) => setApp(event.target.value)}
+                placeholder="the project the agent should read"
+                spellCheck={false}
+                className="mt-1 w-full rounded-md border border-line bg-ink-850 px-2.5 py-1.5 text-[12px] text-fg outline-none placeholder:text-fg-faint/60 focus:border-line-strong"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] tracking-[0.07em] text-fg-faint uppercase">Project folder (optional)</span>
+              <input
+                value={projectRoot}
+                onChange={(event) => setProjectRoot(event.target.value)}
+                placeholder="where its strings actually live"
+                spellCheck={false}
+                className="mt-1 w-full rounded-md border border-line bg-ink-850 px-2.5 py-1.5 font-mono text-[11.5px] text-fg outline-none placeholder:font-sans placeholder:text-fg-faint/60 focus:border-line-strong"
+              />
+            </label>
+          </div>
           <div>
             <span className="text-[10px] tracking-[0.07em] text-fg-faint uppercase">Writes to</span>
             <div className="mt-0.5 font-mono text-[11px] break-all text-fg-dim">{target}</div>

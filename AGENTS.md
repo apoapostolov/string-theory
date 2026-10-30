@@ -120,6 +120,9 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - `src/lib/aiInstructions.ts` is the only copy of the prompt handed to another agent. It restates the rules in `docs/format.md` in paste-sized form, and it builds the target path from the live inbox so the folder it names is the folder this app reads.
 - The prompt has to forbid the demo catalogue by path and demand a row count reconciled against the project's own source of truth. Without both, an agent that cannot find the app's strings hands back `samples/demo.strings.json` with sixteen rows and calls it done, which is exactly what happened.
 - `scripts/validate-export.mjs` recognises that demo by its id set and warns when an export carries it. The sample itself is exempt by path, so the warning keeps its meaning.
+- The prompt leads with the destination as an absolute path and forbids writing anywhere inside this repository. An agent that can only see the String Theory checkout will otherwise leave its export beside the demo in `samples/`, which is how `samples/moo.strings.json` happened.
+- Two fields exist for the same reason: the app name, because the prompt should address the operator's project rather than whichever set is open, and the project folder, because an agent told where the strings live stops searching this repository for them.
+- The validator warns when a file sits inside this repository outside `inbox/`, the demo excepted. That is the cheap catch for a misplaced export, which otherwise looks perfectly valid and never appears in the app.
 - A format change touches `docs/format.md`, the schema, `FormatSpec` and this prompt in the same commit. `scripts/validate-export.mjs` is the arbiter: an export produced from the prompt must exit 0 or the prompt is wrong.
 - The instructions open from two places on purpose: the inbox empty state, and an AI Instructions button in the picker header, which must work when files are already present.
 

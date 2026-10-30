@@ -9,6 +9,7 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const FORMAT = 'string-theory/1'
 const args = process.argv.slice(2)
@@ -190,6 +191,20 @@ if (list) {
   }
   if (missingWhere && missingWhere === list.length) {
     add('warn', 'strings', 'no where line anywhere: the operator loses the "where is this shown" context')
+  }
+}
+
+// An export is data for the tool, so it lives in the inbox, never in the source.
+{
+  const here = resolve(target).split('\\').join('/')
+  const root = resolve(fileURLToPath(new URL('..', import.meta.url))).split('\\').join('/')
+  const demo = `${root}/samples/demo.strings.json`
+  if (here.startsWith(`${root}/`) && here !== demo && !here.startsWith(`${root}/inbox/`)) {
+    add(
+      'warn',
+      '$',
+      'this file sits inside String Theory\'s own repository; an export is data for the tool, so it belongs in inbox/<project>/'
+    )
   }
 }
 

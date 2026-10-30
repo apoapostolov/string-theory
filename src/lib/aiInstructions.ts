@@ -1,6 +1,7 @@
 export type InstructionContext = {
   inboxDir: string
   app?: string
+  projectRoot?: string
   samplePath?: string
 }
 
@@ -30,11 +31,20 @@ export function aiInstructions(context: InstructionContext): string {
   const target = instructionTarget(context)
   const app = context.app || '<app>'
   const sample = context.samplePath || 'samples/demo.strings.json'
+  const root = (context.projectRoot || '').trim()
+  const readHere = root
+    ? `Read the project here: ${root}\n\nDo not read String Theory's own repository for them, even if that is where this conversation started.`
+    : `Read them from ${app}'s own project, not from String Theory's repository, even if that is where this conversation started.`
 
   return `Produce a String Theory export for ${app}: every user-visible string that app ships, not a sample of them.
 
-Write one JSON file to:
-${target}
+Write the file at this exact absolute path:
+
+  ${target}
+
+That path is the deliverable, verbatim. Not a folder beside it, not the folder that holds the demo, and never inside String Theory's own repository: its samples/ and src/ are the tool's source, while an export is data for the tool. If you happen to be running inside the String Theory checkout, read the strings from the target project and still write the export to the path above.
+
+${readHere}
 
 Two things to get right before you write anything.
 
@@ -46,7 +56,7 @@ Coverage is part of the job:
 - Fewer than twenty user-visible strings is unusual for a real app. If that is actually the case, name the screens you inspected and say so in the report.
 - Out-of-scope screens get listed in the report, not silently dropped.
 
-Format id: string-theory/1. Shape shown with three invented rows; your file carries every string:
+Format id: string-theory/1. The block below shows the shape with three invented rows. It is an illustration: do not save it, and do not copy its values. Your file carries every string the app ships:
 
 {
   "format": "string-theory/1",
@@ -84,7 +94,7 @@ Validate before handing over, and again after any fix:
 Exit code 0 means valid; anything else prints the repairs, and --strict makes warnings fail. A warning that the file matches the demo catalogue means the first step was skipped.
 
 Then report, in this shape:
-- the absolute path you wrote
+- the absolute path you wrote, checked against the one above
 - how many rows the file has, against how many strings the source of truth holds
 - which files or folders you read them from
 - every string or screen you left out, and why
