@@ -8,6 +8,7 @@
 // Exit codes: 0 valid, 1 errors (or warnings with --strict), 2 unreadable file.
 
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 const FORMAT = 'string-theory/1'
 const args = process.argv.slice(2)
@@ -189,6 +190,29 @@ if (list) {
   }
   if (missingWhere && missingWhere === list.length) {
     add('warn', 'strings', 'no where line anywhere: the operator loses the "where is this shown" context')
+  }
+}
+
+// An agent that cannot find the target app's strings tends to hand back this
+// repository's own demo catalogue. The ids give it away, so say it plainly.
+if (list && list.length) {
+  const here = resolve(target).split('\\').join('/')
+  if (!here.includes('/samples/')) {
+    try {
+      const demo = JSON.parse(readFileSync(new URL('../samples/demo.strings.json', import.meta.url), 'utf8'))
+      const demoIds = new Set((demo.strings ?? []).map((entry) => entry.id))
+      const ids = list.map((entry) => entry.id)
+      const copied = demoIds.size > 0 && ids.length === demoIds.size && ids.every((id) => demoIds.has(id))
+      if (copied) {
+        add(
+          'warn',
+          'strings',
+          "these are String Theory's demo ids, sixteen rows describing an invented app; export the target app's own catalogue instead"
+        )
+      }
+    } catch {
+      // The demo is optional at runtime; a missing one never blocks validation.
+    }
   }
 }
 

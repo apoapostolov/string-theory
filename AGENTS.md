@@ -118,6 +118,8 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 ## Agent instructions
 
 - `src/lib/aiInstructions.ts` is the only copy of the prompt handed to another agent. It restates the rules in `docs/format.md` in paste-sized form, and it builds the target path from the live inbox so the folder it names is the folder this app reads.
+- The prompt has to forbid the demo catalogue by path and demand a row count reconciled against the project's own source of truth. Without both, an agent that cannot find the app's strings hands back `samples/demo.strings.json` with sixteen rows and calls it done, which is exactly what happened.
+- `scripts/validate-export.mjs` recognises that demo by its id set and warns when an export carries it. The sample itself is exempt by path, so the warning keeps its meaning.
 - A format change touches `docs/format.md`, the schema, `FormatSpec` and this prompt in the same commit. `scripts/validate-export.mjs` is the arbiter: an export produced from the prompt must exit 0 or the prompt is wrong.
 - The instructions open from two places on purpose: the inbox empty state, and an AI Instructions button in the picker header, which must work when files are already present.
 
