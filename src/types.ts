@@ -223,6 +223,8 @@ export type Config = {
   authModes: Record<string, 'key' | 'oauth'>
   /** Hours a fetched model catalogue stays fresh before it is fetched again. */
   modelsTtlHours: number
+  /** The model last used with each provider, restored when it is applied again. */
+  modelByProvider?: Record<string, string>
 }
 
 export type OAuthProvider = {

@@ -158,12 +158,25 @@ export async function listModels(provider, { endpoint, key, auth = 'key' }) {
   const base = endpoint || provider.endpoint
   const headers = { Accept: 'application/json' }
 
-  // A session is a bearer token, not an API key, and the two never share headers.
+  // A ChatGPT session reads its catalogue from the Codex backend, not from the
+  // platform API. The endpoint needs `client_version` or it answers 400, and the
+  // session must never travel with the platform base URL.
   if (auth === 'oauth' && provider.kind === 'openai' && provider.id === 'openai') {
-    throw Object.assign(
-      new Error('A ChatGPT session has no model catalogue to read; the model list comes from the platform API key.'),
-      { code: 'no-catalogue' }
-    )
+    const codexBase = String(process.env.ST_CODEX_BASE || 'https://chatgpt.com/backend-api/codex').replace(/\/+$/, '')
+    const res = await fetch(`${codexBase}/models?client_version=1.0.0`, {
+      headers: {
+        ...headers,
+        Authorization: `Bearer ${key}`,
+        originator: 'codex_cli_rs',
+        'OpenAI-Beta': 'responses=experimental'
+      }
+    })
+    const body = await res.text()
+    if (!res.ok) throw providerError(provider.label, res.status, body)
+    const data = JSON.parse(body)
+    return (data.models ?? [])
+      .map((model) => (typeof model === 'string' ? model : model.slug ?? model.id))
+      .filter(Boolean)
   }
 
   if (provider.kind === 'anthropic') {

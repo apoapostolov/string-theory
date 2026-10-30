@@ -132,12 +132,19 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - A menu opened from a row near the bottom of the list would be clipped by the scroller, so it flips above the trigger when there is less than roughly 230px of viewport below it. Measure at open time.
 - Test this by hit-testing the point inside the menu with `document.elementFromPoint`: before the fix it returns an element from the row underneath, and the last menu item is unclickable.
 
+## One applied provider and model
+
+- The applied pair is `(config.activeProvider, config.model)`. Settings renders the provider grid as a `radiogroup` of `radio` rows with a real checkbox; ticking one patches both fields at once and there is never more than one ticked. Nothing else in the UI may change `activeProvider` on its own.
+- `patchConfig` remembers the outgoing pair in `modelByProvider` before applying a change, and the incoming one after, so switching providers restores the model last used with each instead of the first entry in its catalogue.
+- The header chip names the pair — `Provider · model · $spend today` — and the per-row Polish button inherits it, because the client sends no model and the server resolves `config.model`. Prove that wiring by setting a bogus model and reading the provider's rejection, never by assuming.
+
 ## Model catalogues
 
 - `server/models-cache.mjs` owns the cache: `data/models-cache.json`, one entry per provider with the models, the time it was fetched, and whether the last check passed. The curated array in `server/providers.mjs` is a seed, never the answer.
 - The catalogue fetch is the health check. `/models` answers 200 only to an accepted credential, so a save, a completed sign-in or an endpoint change refreshes it, and a stale entry is refreshed behind the next `GET /api/config`. Never block a response on it: warm in the background on load, await only on an explicit action.
 - `state` is the verdict, not `ok`: `ok`, `limited` (the credential works but may not read the catalogue), `rejected` (401), `unreachable`. A limited key must not read as a dead one, and a failure never overwrites a good catalogue unless the credential was rejected.
-- A session and a key do not share headers here either: `listModels` takes `auth`, sends a bearer and the oauth beta header for a Claude session, and refuses outright for a ChatGPT session that has no catalogue to read.
+- A session and a key do not share headers here either: `listModels` takes `auth`, sends a bearer and the oauth beta header for a Claude session, and for a ChatGPT session reads `https://chatgpt.com/backend-api/codex/models?client_version=1.0.0` with `originator: codex_cli_rs` — without `client_version` that endpoint answers 400, and the session must never travel to the platform base.
+- `npm run verify:models` asks every provider's catalogue endpoint with an invalid credential: 401/403 means the path and headers are right and only the key is missing, 404 means the path is wrong. OpenRouter and a local Ollama answer without a key, which proves the OpenAI-compatible path end to end.
 - The refresh control lives with the model picker, not in the key-only block, because a sign-in has a catalogue too.
 - `scripts/models.test.mjs` pins freshness, classification, the header shapes and the cache lifecycle against a local stub; `scripts/smoke.mjs` drives the same paths through the running server.
 

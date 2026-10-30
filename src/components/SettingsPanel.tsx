@@ -206,6 +206,19 @@ export function SettingsPanel({
     }
   }
 
+  /**
+   * Apply one provider and one model. Exactly one pair runs the passes, and this
+   * is where that pair is chosen: pressing the box is the decision.
+   */
+  function applyProvider(provider: ProviderInfo) {
+    if (provider.id === config?.activeProvider) return
+    const catalogue = payload?.models?.providers?.[provider.id]?.models ?? []
+    const list = catalogue.length ? catalogue : provider.models
+    const remembered = config?.modelByProvider?.[provider.id] ?? ''
+    const model = list.includes(remembered) ? remembered : (list[0] ?? '')
+    void onPatch({ activeProvider: provider.id, model })
+  }
+
   const usage = payload?.usage
   const authMode = authModeFor(active?.id, payload)
   const keyOptions = authMode !== 'oauth'
@@ -300,34 +313,64 @@ export function SettingsPanel({
         <div className="min-h-0 flex-1 overflow-y-auto">
           {tab === 'provider' ? (
             <div role="tabpanel" id="settings-provider" aria-labelledby="settings-tab-provider">
-              <Section title="AI provider" hint="Keys and sign-in sessions live in an encrypted local file, never in the browser.">
-            <div className="grid grid-cols-2 gap-1.5">
+              <Section
+                title="AI provider"
+                hint="One provider and one model run the passes: ticking a provider applies it, unticks the others, and opens its credentials below. Keys and sessions live in an encrypted local file, never in the browser."
+              >
+            <div role="radiogroup" aria-label="Applied provider and model" className="grid grid-cols-2 gap-1.5">
               {providers.map((provider: ProviderInfo) => {
-                const connected = payload?.keys[provider.id]?.present
+                const keyed = payload?.keys[provider.id]?.present
+                const session = payload?.oauth?.sessions?.[provider.id]?.present
+                const connected = Boolean(keyed || session)
                 const selected = provider.id === config?.activeProvider
                 return (
                   <button
                     key={provider.id}
                     type="button"
-                    onClick={() => onPatch({ activeProvider: provider.id, model: provider.models[0] ?? '' })}
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => applyProvider(provider)}
+                    title={
+                      selected
+                        ? `Applied: ${provider.label} with ${config?.model || 'no model yet'}. Click another provider's box to switch.`
+                        : `Apply ${provider.label}. One provider and model run the passes at a time.`
+                    }
                     className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
                       selected
-                        ? 'border-line-strong bg-ink-750 shadow-[inset_2px_0_0_var(--color-fg-dim)]'
+                        ? 'border-line-strong bg-ink-750'
                         : 'border-line bg-ink-900 hover:border-line-strong hover:bg-ink-850'
                     }`}
                   >
                     <span
+                      aria-hidden="true"
+                      className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border transition-colors ${
+                        selected ? 'border-fg bg-fg text-ink-950' : 'border-line-strong bg-ink-900'
+                      }`}
+                    >
+                      {selected ? <Check size={9} weight="bold" /> : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate text-[12px] ${selected ? 'font-medium text-fg' : 'text-fg'}`}>
+                        {provider.label}
+                      </span>
+                      <span className="block truncate text-[10px] text-fg-faint">
+                        {selected
+                          ? config?.model || 'pick a model below'
+                          : !connected && provider.needsKey
+                            ? 'no key'
+                            : !connected
+                              ? 'no key needed'
+                              : session
+                                ? 'signed in'
+                                : 'key saved'}
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden="true"
                       className={`h-1.5 w-1.5 shrink-0 rounded-full ${
                         connected ? 'bg-ok' : provider.needsKey ? 'bg-fg-faint/40' : 'bg-fg-faint/25'
                       }`}
                     />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12px] text-fg">{provider.label}</span>
-                      <span className="block truncate text-[10px] text-fg-faint">
-                        {connected ? 'key saved' : provider.needsKey ? 'no key' : 'no key needed'}
-                      </span>
-                    </span>
-                    {selected ? <Check size={11} className="shrink-0 text-fg-dim" weight="bold" /> : null}
                   </button>
                 )
               })}

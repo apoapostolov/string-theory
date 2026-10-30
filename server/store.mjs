@@ -28,6 +28,9 @@ const CONFIG_DEFAULTS = {
   inboxDir: '',
   styleDir: '',
   authModes: {},
+  // The model last used with each provider, so switching back restores the pick
+  // instead of resetting to whichever model happens to be first in the catalogue.
+  modelByProvider: {},
   // How long a fetched model catalogue stays fresh before it is fetched again.
   modelsTtlHours: 24
 }
@@ -105,8 +108,18 @@ export function patchConfig(patch) {
   return serialised(() => {
     const current = getConfig()
     const next = { ...current }
+    // The pair that is applied right now is remembered before anything changes,
+    // so switching away keeps its model even when it was set before this field
+    // existed.
+    const remembered = { ...(current.modelByProvider ?? {}) }
+    if (current.activeProvider && current.model) remembered[current.activeProvider] = current.model
+    next.modelByProvider = remembered
     for (const key of Object.keys(CONFIG_DEFAULTS)) {
       if (patch[key] !== undefined) next[key] = patch[key]
+    }
+    // And the incoming pair is remembered too, so a reload restores it.
+    if (typeof next.model === 'string' && next.model && next.activeProvider) {
+      next.modelByProvider = { ...remembered, [next.activeProvider]: next.model }
     }
     if (patch.providerId && patch.endpoint !== undefined) {
       const clean = String(patch.endpoint).trim()

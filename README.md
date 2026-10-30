@@ -43,6 +43,10 @@ Verdicts are a left border and a tint: green fits, amber fits but reads badly at
 
 Fonts are measured as declared: family, size, weight and letter spacing, per file, with an optional per-string override for the panel title that is 16px inside a file of 14px labels.
 
+## One applied provider and model
+
+A pass runs with exactly one provider and one model, and Settings says which: every provider carries a checkbox, ticking one applies it, and the tick moves — checking a second provider unchecks the first. The applied pair names itself twice: on the provider row, where the subtitle becomes the model, and in the header chip (`OpenAI · gpt-5.6-luna · $0.008`), which is what the Polish button on any row will use. Switching away keeps each provider's last model, so returning to it restores your pick rather than resetting to whatever sits first in the catalogue.
+
 ## Model catalogues
 
 A hardcoded model list is wrong the week it ships. Every provider publishes its own catalogue, so the app asks for it, caches the answer and asks again when the answer is stale:

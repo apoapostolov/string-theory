@@ -21,6 +21,7 @@ type TopBarProps = {
   query: string
   onQuery: (value: string) => void
   provider: ProviderInfo | null
+  model: string
   providerReady: boolean
   usage: UsageSummary | null
   onSettings: () => void
@@ -35,6 +36,7 @@ export function TopBar({
   query,
   onQuery,
   provider,
+  model,
   providerReady,
   usage,
   onSettings,
@@ -88,14 +90,19 @@ export function TopBar({
       <button
         type="button"
         onClick={onSettings}
-        title="AI provider, budget and measurement"
-        aria-label={`AI provider: ${provider ? provider.label : 'none connected'}. Open settings.`}
+        title={`${provider ? `${provider.label} · ${model || 'no model'}` : 'No provider applied'}${
+          usage ? ` · $${usage.day.costUsd.toFixed(3)} today` : ''
+        }`}
+        aria-label={`Applied AI: ${
+          provider ? `${provider.label}, model ${model || 'none'}` : 'none connected'
+        }. Spent $${usage?.day.costUsd?.toFixed(3) ?? '0.000'} today. Open settings.`}
         className="flex h-8 shrink-0 items-center gap-2 rounded-lg border border-line bg-ink-850 px-2.5 text-[11.5px] text-fg-dim transition-colors hover:border-line-strong hover:text-fg"
       >
         <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
         <Cpu size={12} />
-        <span className="max-w-[130px] truncate">
+        <span className="max-w-[210px] truncate">
           {provider ? provider.label : 'No provider'}
+          {provider && model ? <span className="font-mono text-[10.5px] text-fg-dim"> · {model}</span> : null}
           {provider && usage ? <span className="text-fg-faint"> · ${usage.day.costUsd.toFixed(3)}</span> : null}
         </span>
       </button>

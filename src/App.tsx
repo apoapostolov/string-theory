@@ -896,6 +896,7 @@ export default function App() {
         query={query}
         onQuery={setQuery}
         provider={provider}
+        model={payload?.config.model || provider?.models[0] || ''}
         providerReady={providerReady}
         usage={usage}
         onSettings={() => setSettingsOpen(true)}

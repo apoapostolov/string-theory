@@ -50,6 +50,7 @@ const stub = createServer((req, res) => {
   if (mode === '401') return send(401, { error: { message: 'Incorrect API key provided.' } })
   if (mode === 'limited') return send(403, { error: { message: 'Missing scopes: api.model.read.' } })
   if (mode === 'down') return res.destroy()
+  if (mode === 'codex') return send(200, { models: [{ slug: 'gpt-6.1-sol' }, { slug: 'gpt-6-luna' }] })
   return send(200, { data: [{ id: 'gpt-5.6-luna' }, { id: 'gpt-4.1-mini' }] })
 })
 await new Promise((resolve) => stub.listen(0, '127.0.0.1', resolve))
@@ -105,13 +106,21 @@ check('a Claude session uses a bearer token', seen.at(-1)?.headers?.authorizatio
 check('a Claude session sends the oauth beta header', seen.at(-1)?.headers?.['anthropic-beta'] === 'oauth-2025-04-20')
 check('a Claude session sends no api key header', seen.at(-1)?.headers?.['x-api-key'] === undefined)
 
-let codexError = null
-try {
-  await listModels({ id: 'openai', label: 'OpenAI', kind: 'openai', endpoint: base }, { key: 'tok', auth: 'oauth' })
-} catch (error) {
-  codexError = error
-}
-check('a ChatGPT session has no catalogue to read', codexError?.code === 'no-catalogue', codexError?.message?.slice(0, 40))
+// A ChatGPT session reads its catalogue from the Codex backend, which needs
+// `client_version` and the originator header, and is the one case that used to
+// answer "no catalogue".
+process.env.ST_CODEX_BASE = `${base}/backend-api/codex`
+mode = 'codex'
+seen = []
+const sessionModels = await listModels(
+  { id: 'openai', label: 'OpenAI', kind: 'openai', endpoint: 'https://api.openai.com/v1' },
+  { key: 'session-token', auth: 'oauth' }
+)
+check('a ChatGPT session lists the Codex catalogue', sessionModels.join(',') === 'gpt-6.1-sol,gpt-6-luna', sessionModels.join(','))
+check('the Codex call sends client_version', String(seen.at(-1)?.url).includes('client_version=1.0.0'), seen.at(-1)?.url)
+check('the Codex call announces the originator', seen.at(-1)?.headers?.originator === 'codex_cli_rs')
+check('a session never travels to the platform base', !String(seen.at(-1)?.url).includes('api.openai.com'), seen.at(-1)?.url)
+delete process.env.ST_CODEX_BASE
 
 seen = []
 await listModels(gemini, { key: 'AIza', endpoint: base })
