@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="docs/icon.png" alt="String Theory app icon" width="76" height="76">
+</p>
+
+<p align="center">
   <img src="docs/banner.png" alt="String Theory: rewrite an app's UI strings against the pixel budget the layout gives them" width="100%">
 </p>
 
