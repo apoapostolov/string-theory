@@ -2,10 +2,6 @@
   <img src="docs/icon.png" alt="String Theory app icon" width="76" height="76">
 </p>
 
-<p align="center">
-  <img src="docs/banner.png" alt="String Theory: rewrite an app's UI strings against the pixel budget the layout gives them" width="100%">
-</p>
-
 <h1 align="center">String Theory</h1>
 
 <p align="center">Pixel-aware rewriting for interface copy, with a human decision on every string.</p>
@@ -105,6 +101,10 @@ npm run dev
 ```
 
 One URL in both modes, <http://127.0.0.1:4317>. In dev the supervisor starts Vite on 4317 with hot module replacement and the API on 4318 behind the `/api` proxy, so a client edit lands in the open page and a server edit restarts the API without touching your working sets.
+
+<p align="center">
+  <img src="docs/banner.png" alt="String Theory: rewrite an app's UI strings against the pixel budget the layout gives them" width="100%">
+</p>
 
 ### Keep it running
 
