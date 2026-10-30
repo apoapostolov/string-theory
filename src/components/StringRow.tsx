@@ -227,67 +227,56 @@ function RowShell({
       aria-describedby={`row-verdict-${row.key}`}
       className={`st-row ${BORDER[fit]}`}
     >
-      <div className="flex items-center gap-2.5 px-3 pt-2">
-        <StateGlyph state={row.state} onCycle={() => onCycleState(row.key)} onReset={() => onResetState(row.key)} />
+      <div className="grid grid-cols-1 gap-x-7 gap-y-2 pr-4 pb-3 pl-3 pt-2 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+        {/* Left: the glyph, the identity line and the source. Nothing above it. */}
+        <div className="flex min-w-0 items-start gap-2.5">
+          <span className="mt-[1px] shrink-0">
+            <StateGlyph state={row.state} onCycle={() => onCycleState(row.key)} onReset={() => onResetState(row.key)} />
+          </span>
 
-        <HoverInfo content={info} className="min-w-0 flex-1">
-          <span className="st-num flex items-baseline gap-1.5 truncate font-mono text-[11px]">
-            <span id={`row-label-${row.key}`} className="truncate text-fg-faint hover:text-fg-dim">
-              {row.id}
-            </span>
-            <span className="shrink-0 text-fg-faint/50">·</span>
-            <span className="shrink-0 text-[10.5px] text-fg-faint">
-              {row.maxPxPerLine ? `${px(row.maxPxPerLine)} px/line` : 'no px limit'}
-            </span>
-            <span className="shrink-0 text-fg-faint/50">·</span>
-            <span className="shrink-0 text-[10.5px] text-fg-faint">{px(beforePx)} px wide</span>
-            {row.maxLines > 1 ? (
-              <>
+          <div className="min-w-0 flex-1">
+            <HoverInfo content={info} className="block">
+              <span className="st-num flex items-baseline gap-1.5 truncate font-mono text-[11px]">
+                <span id={`row-label-${row.key}`} className="truncate text-fg-faint hover:text-fg-dim">
+                  {row.id}
+                </span>
                 <span className="shrink-0 text-fg-faint/50">·</span>
-                <span className="shrink-0 text-[10.5px] text-fg-faint">{row.maxLines} lines</span>
-              </>
-            ) : null}
-            {row.maxChars ? (
-              <>
+                <span className="shrink-0 text-[10.5px] text-fg-faint">
+                  {row.maxPxPerLine ? `${px(row.maxPxPerLine)} px/line` : 'no px limit'}
+                </span>
                 <span className="shrink-0 text-fg-faint/50">·</span>
-                <span className="shrink-0 text-[10.5px] text-fg-faint">{row.maxChars} ch</span>
-              </>
-            ) : null}
-          </span>
-        </HoverInfo>
+                <span className="shrink-0 text-[10.5px] text-fg-faint">{px(beforePx)} px wide</span>
+                {row.maxLines > 1 ? (
+                  <>
+                    <span className="shrink-0 text-fg-faint/50">·</span>
+                    <span className="shrink-0 text-[10.5px] text-fg-faint">{row.maxLines} lines</span>
+                  </>
+                ) : null}
+                {row.maxChars ? (
+                  <>
+                    <span className="shrink-0 text-fg-faint/50">·</span>
+                    <span className="shrink-0 text-[10.5px] text-fg-faint">{row.maxChars} ch</span>
+                  </>
+                ) : null}
+                {row.ai ? (
+                  <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-line bg-ink-800 px-1.5 py-[1px] text-[9.5px] tracking-[0.06em] text-fg-dim uppercase">
+                    <Sparkle size={9} weight="fill" />
+                    AI
+                  </span>
+                ) : null}
+              </span>
+            </HoverInfo>
 
-        {row.ai ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-line bg-ink-800 px-1.5 py-[1px] text-[9.5px] tracking-[0.06em] text-fg-dim uppercase">
-            <Sparkle size={9} weight="fill" />
-            AI
-          </span>
-        ) : null}
-
-        {row.busy ? (
-          <span className="flex items-center gap-1 text-[10.5px] text-fg-faint">
-            <span className="h-2.5 w-2.5 rounded-full border border-fg-faint/40 border-t-fg-dim st-shimmer" />
-            polishing
-          </span>
-        ) : null}
-
-        {row.error ? (
-          <span className="flex min-w-0 items-center gap-1 truncate text-[10.5px] text-over">
-            <WarningCircle size={11} weight="bold" className="shrink-0" />
-            <span className="truncate">{row.error}</span>
-          </span>
-        ) : null}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 pr-4 pb-3 pl-3 pt-1 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-7">
-        <div className="min-w-0">
-          <HoverInfo content={info} className="block" width={400}>
-            <span className="block text-[13.5px] leading-snug text-fg/95">{row.source}</span>
-            <span className="mt-1 block truncate font-mono text-[10.5px] text-fg-faint">
-              {row.where || 'location not exported'}
-            </span>
-          </HoverInfo>
+            <HoverInfo content={info} className="mt-1 block" width={400}>
+              <span className="block text-[13.5px] leading-snug text-fg/95">{row.source}</span>
+              <span className="mt-1 block truncate font-mono text-[10.5px] text-fg-faint">
+                {row.where || 'location not exported'}
+              </span>
+            </HoverInfo>
+          </div>
         </div>
 
+        {/* Right: the input sits at the top of the row, meters hang under it. */}
         <div className="min-w-0">
           <div className="flex items-stretch gap-1.5">
             <textarea
@@ -330,6 +319,24 @@ function RowShell({
               <ArrowCounterClockwise size={13} />
             </button>
           </div>
+
+          {row.busy || row.error ? (
+            <div className="mt-1.5 flex min-w-0 items-center gap-3 text-[10.5px]">
+              {row.busy ? (
+                <span className="flex shrink-0 items-center gap-1 text-fg-faint">
+                  <span className="h-2.5 w-2.5 rounded-full border border-fg-faint/40 border-t-fg-dim st-shimmer" />
+                  polishing
+                </span>
+              ) : null}
+              {row.error ? (
+                <span className="flex min-w-0 items-center gap-1 truncate text-over">
+                  <WarningCircle size={11} weight="bold" className="shrink-0" />
+                  <span className="truncate">{row.error}</span>
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="mt-2 flex flex-wrap items-start gap-x-6 gap-y-2">
             <Meter
               label="chars"

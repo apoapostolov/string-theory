@@ -112,6 +112,7 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - Rows alternate with `.st-row:nth-child(even)`. Do not add per-row backgrounds from JSX; the stripe is one rule so the list stays even when a filter hides rows.
 - Motion comes from `src/styles.css`: one curve (`--ease-out`) and three durations. Animate transform, opacity and colour only, and cover every new animation with the reduced-motion block.
 - Focus is one shape everywhere: the global `:focus-visible` ring, plus `:focus-within` on a row so the row being edited reads as active.
+- A row is one two-column block from its first pixel. The identity line belongs to the left column so the input starts flush at the row top; never reintroduce a full-width header strip above both columns.
 - A verdict is never colour alone. Meters are `role="progressbar"` with `aria-valuetext`, and each row carries an `sr-only` sentence with its budget, line count and orphan percentage.
 - Dialogs go through `src/lib/useDialog.ts` for Escape, focus trapping and focus restore. A drawer that stays mounted needs `inert` while closed.
 - `npm run check:contrast` computes every text and border pair. All pairs pass before a UI change ships; a new token joins that table in the same commit.
