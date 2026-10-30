@@ -25,6 +25,9 @@ type Props = {
   useProfile?: boolean
   profileReady?: boolean
   profilePath?: string
+  profileName?: string
+  showVoices?: boolean
+  showProfile?: boolean
   onToggleProfile?: () => void
 }
 
@@ -63,6 +66,9 @@ function DocsShell({
   useProfile,
   profileReady,
   profilePath,
+  profileName,
+  showVoices = true,
+  showProfile = true,
   onToggleProfile
 }: Props) {
   const changed = row.text !== row.source
@@ -136,6 +142,9 @@ function DocsShell({
             useProfile={useProfile}
             profileReady={profileReady}
             profilePath={profilePath}
+            profileName={profileName}
+            showVoices={showVoices}
+            showProfile={showProfile}
             onToggleProfile={onToggleProfile}
             onRun={() => onPolish(row.key)}
             onPick={(mode, picked) => onPolish(row.key, mode, picked)}

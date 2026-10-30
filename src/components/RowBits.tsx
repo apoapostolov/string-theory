@@ -59,6 +59,9 @@ export function PassControl({
   useProfile = true,
   profileReady = false,
   profilePath = '',
+  profileName = 'Your profile',
+  showVoices = true,
+  showProfile = true,
   onToggleProfile
 }: {
   busy: boolean
@@ -72,16 +75,19 @@ export function PassControl({
   useProfile?: boolean
   profileReady?: boolean
   profilePath?: string
+  profileName?: string
+  /** Settings decides what the menu offers beyond the three passes. */
+  showVoices?: boolean
+  showProfile?: boolean
   onToggleProfile?: () => void
 }) {
   const [open, setOpen] = useState(false)
-  // A menu under the last visible row would be cut off by the list, so it opens
-  // upward when there is no room below the trigger.
-  const [flip, setFlip] = useState(false)
   // A menu this tall rarely fits on both sides of a row, so it also takes the
   // height the chosen side actually has and scrolls inside that.
-  const [maxHeight, setMaxHeight] = useState(470)
+  const [maxHeight, setMaxHeight] = useState(320)
+  const [flip, setFlip] = useState(false)
   const root = useRef<HTMLDivElement>(null)
+  const secondColumn = showVoices || (showProfile && Boolean(onToggleProfile))
 
   useEffect(() => {
     if (!open) return
@@ -114,11 +120,9 @@ export function PassControl({
           if (rect) {
             const below = window.innerHeight - rect.bottom - 10
             const above = rect.top - 10
-            // Three passes, five voices and the profile switch come to about
-            // 460px: flip when the side with more room is the one above.
-            const goUp = below < 470 && above > below
+            const goUp = below < 320 && above > below
             setFlip(goUp)
-            setMaxHeight(Math.max(240, Math.min(470, goUp ? above : below)))
+            setMaxHeight(Math.max(200, Math.min(340, goUp ? above : below)))
           }
           setOpen((value) => !value)
         }}
@@ -142,101 +146,114 @@ export function PassControl({
             }
           }}
           style={{ maxHeight }}
-          className={`st-dialog absolute right-0 z-30 w-64 overflow-y-auto rounded-[10px] border border-line bg-ink-800 py-1 shadow-[0_18px_40px_rgba(0,0,0,0.6)] ${
-            flip ? 'bottom-full mb-1' : 'top-full mt-1'
-          }`}
+          className={`st-dialog absolute right-0 z-30 overflow-y-auto rounded-[10px] border border-line bg-ink-800 py-1 shadow-[0_18px_40px_rgba(0,0,0,0.6)] ${
+            secondColumn ? 'w-[27rem]' : 'w-60'
+          } ${flip ? 'bottom-full mb-1' : 'top-full mt-1'}`}
         >
           {!connected ? (
             <p className="border-b border-line px-3 py-1.5 text-[10.5px] leading-snug text-fg-faint">
               Connect an AI provider to run a pass.
             </p>
           ) : null}
-          <div className="px-3 pt-0.5 pb-1 text-[9.5px] tracking-[0.08em] text-fg-faint uppercase">Pass</div>
-          {modes.map((mode) => (
-            <button
-              key={mode.id}
-              type="button"
-              role="menuitem"
-              disabled={!connected}
-              onClick={() => {
-                setOpen(false)
-                onPick(mode.id)
-              }}
-              className={`block w-full px-3 py-1.5 text-left transition-colors ${
-                connected ? 'hover:bg-ink-750' : 'cursor-not-allowed opacity-40'
-              }`}
-            >
-              <span className="block text-[12px] text-fg">{mode.label}</span>
-              <span className="block text-[10.5px] text-fg-faint">{mode.hint}</span>
-            </button>
-          ))}
-
-          {voices.length ? (
-            <>
-              <div className="mt-1 border-t border-line px-3 pt-1.5 pb-1 text-[9.5px] tracking-[0.08em] text-fg-faint uppercase">
-                Voice
-              </div>
-              {voices.map((entry) => {
-                const chosen = entry.id === voice
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    role="menuitem"
-                    disabled={!connected}
-                    onClick={() => {
-                      setOpen(false)
-                      onPick('humanize', entry.id)
-                    }}
-                    className={`flex w-full items-start gap-2 px-3 py-1.5 text-left transition-colors ${
-                      connected ? 'hover:bg-ink-750' : 'cursor-not-allowed opacity-40'
-                    }`}
-                  >
-                    <span className="mt-[3px] shrink-0 text-fg">
-                      {chosen ? <Check size={9} weight="bold" /> : <span className="block h-[9px] w-[9px]" />}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[12px] text-fg">{entry.label}</span>
-                      <span className="block text-[10.5px] leading-snug text-fg-faint">{entry.blurb}</span>
-                    </span>
-                  </button>
-                )
-              })}
-              <div className="mt-1.5 border-t border-line px-3 pt-1.5 pb-1 text-[9.5px] tracking-[0.08em] text-fg-faint uppercase">
-                Profile
-              </div>
-              <button
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={profileReady ? useProfile : false}
-                disabled={!profileReady || !onToggleProfile}
-                onClick={() => onToggleProfile?.()}
-                title={
-                  profileReady
-                    ? "Apostol's voice profile rides along with every humanize pass"
-                    : `No profile file at ${profilePath || 'the configured path'}`
-                }
-                className="flex w-full items-start gap-2 px-3 pt-0.5 pb-1.5 text-left transition-colors hover:bg-ink-750 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <span
-                  aria-hidden="true"
-                  className={`mt-[2px] flex h-3 w-3 shrink-0 items-center justify-center rounded-[3px] border ${
-                    profileReady && useProfile ? 'border-fg bg-fg text-ink-950' : 'border-line-strong'
+          <div className={secondColumn ? 'grid grid-cols-2' : ''}>
+            <div className={secondColumn ? 'border-r border-line' : ''}>
+              <div className="px-3 pt-0.5 pb-1 text-[9.5px] tracking-[0.08em] text-fg-faint uppercase">Pass</div>
+              {modes.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  role="menuitem"
+                  disabled={!connected}
+                  onClick={() => {
+                    setOpen(false)
+                    onPick(mode.id)
+                  }}
+                  className={`block w-full px-3 py-1.5 text-left transition-colors ${
+                    connected ? 'hover:bg-ink-750' : 'cursor-not-allowed opacity-40'
                   }`}
                 >
-                  {profileReady && useProfile ? <Check size={8} weight="bold" /> : null}
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[11.5px] text-fg-dim">Apostol&rsquo;s profile</span>
-                  <span className="block text-[10px] leading-snug text-fg-faint">
-                    {profileReady
-                      ? 'Applies his voice to whichever method you pick'
-                      : `No profile found${profilePath ? ` at ${profilePath}` : ''}`}
-                  </span>
-                </span>
-              </button>
-            </>
-          ) : null}
+                  <span className="block text-[12px] text-fg">{mode.label}</span>
+                  <span className="block text-[10.5px] leading-snug text-fg-faint">{mode.hint}</span>
+                </button>
+              ))}
+            </div>
+
+            {secondColumn ? (
+              <div>
+                {showVoices && voices.length ? (
+                  <>
+                    <div className="px-3 pt-0.5 pb-1 text-[9.5px] tracking-[0.08em] text-fg-faint uppercase">Voice</div>
+                    {voices.map((entry) => {
+                      const chosen = entry.id === voice
+                      return (
+                        <button
+                          key={entry.id}
+                          type="button"
+                          role="menuitem"
+                          disabled={!connected}
+                          onClick={() => {
+                            setOpen(false)
+                            onPick('humanize', entry.id)
+                          }}
+                          className={`flex w-full items-start gap-1.5 px-3 py-1.5 text-left transition-colors ${
+                            connected ? 'hover:bg-ink-750' : 'cursor-not-allowed opacity-40'
+                          }`}
+                        >
+                          <span className="mt-[3px] flex w-3 shrink-0 justify-center text-fg">
+                            {chosen ? <Check size={9} weight="bold" /> : null}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[12px] text-fg">{entry.label}</span>
+                            <span className="block text-[10px] leading-snug text-fg-faint">{entry.blurb}</span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </>
+                ) : null}
+
+                {showProfile && onToggleProfile ? (
+                  <>
+                    <div
+                      className={`px-3 pt-1.5 pb-1 text-[9.5px] tracking-[0.08em] text-fg-faint uppercase ${
+                        showVoices && voices.length ? 'mt-1 border-t border-line' : 'pt-0.5'
+                      }`}
+                    >
+                      Profile
+                    </div>
+                    <button
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={profileReady ? useProfile : false}
+                      disabled={!profileReady}
+                      onClick={() => onToggleProfile()}
+                      title={
+                        profileReady
+                          ? `${profileName} rides along with every humanize pass`
+                          : `No profile file at ${profilePath || 'the configured path'}`
+                      }
+                      className="flex w-full items-start gap-1.5 px-3 pt-0.5 pb-1.5 text-left transition-colors hover:bg-ink-750 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`mt-[2px] flex h-3 w-3 shrink-0 items-center justify-center rounded-[3px] border ${
+                          profileReady && useProfile ? 'border-fg bg-fg text-ink-950' : 'border-line-strong'
+                        }`}
+                      >
+                        {profileReady && useProfile ? <Check size={8} weight="bold" /> : null}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-[11.5px] text-fg-dim">{profileName}</span>
+                        <span className="block text-[10px] leading-snug text-fg-faint">
+                          {profileReady ? 'Applies with whichever voice you pick' : 'Profile file not found'}
+                        </span>
+                      </span>
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>

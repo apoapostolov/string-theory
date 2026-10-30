@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 
 import { buildPrompt } from '../server/polish.mjs'
 import { VOICES, voiceFor, voiceBlock, voiceList } from '../shared/voices.mjs'
-import { voiceProfile, voiceProfileSummary, DEFAULT_PROFILE_PATH } from '../server/voice-profile.mjs'
+import { userProfile, userProfileSummary, DEFAULT_PROFILE_PATH } from '../server/user-profile.mjs'
 
 let pass = 0
 let fail = 0
@@ -76,21 +76,21 @@ check('the shipped default path is outside this repository', DEFAULT_PROFILE_PAT
 
 const dir = mkdtempSync(join(tmpdir(), 'st-voice-'))
 try {
-  const missing = voiceProfile(join(dir, 'nope.md'))
+  const missing = userProfile(join(dir, 'nope.md'))
   check('a missing profile is a state, not a crash', missing.present === false && missing.text === '')
   check('a missing profile reports where it looked', missing.path.endsWith('nope.md'))
 
   const file = join(dir, 'profile.md')
   const head = '# A profile\n\n[version history](v1.md)\n\n## Apply in every voice\n\nKeep the writer visible.\n\n## Supported habits\n\n' + 'A habit sentence.\n\n'.repeat(400)
   writeFileSync(file, head)
-  const read = voiceProfile(file)
+  const read = userProfile(file)
   check('a present profile is read', read.present === true && read.text.includes('Keep the writer visible'))
   check('the version history is dropped', !read.text.includes('version history'))
   check('a long profile is trimmed at a paragraph', read.chars <= 4000 && read.text.endsWith('.'), String(read.chars))
-  check('the summary never carries the body', JSON.stringify(voiceProfileSummary(file)).length < 200)
+  check('the summary never carries the body', JSON.stringify(userProfileSummary(file)).length < 200)
 
   writeFileSync(file, head.replace('Keep the writer visible.', 'Keep the writer visible, and plainly.'))
-  check('an edited profile is picked up', voiceProfile(file).text.includes('and plainly'))
+  check('an edited profile is picked up', userProfile(file).text.includes('and plainly'))
 } finally {
   rmSync(dir, { recursive: true, force: true })
 }

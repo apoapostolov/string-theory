@@ -547,17 +547,27 @@ export function SettingsPanel({
                       />
                     </Field>
                     <Field
-                      label="Voice profile (path)"
+                      label="Profile name"
+                      hint="What the pass menu calls your profile. Anything you like: a name, a role, a house style."
+                    >
+                      <DraftInput
+                        value={config?.userProfileName ?? ''}
+                        placeholder="Your profile"
+                        onCommit={(value) => onPatch({ userProfileName: String(value).trim() })}
+                      />
+                    </Field>
+                    <Field
+                      label="Profile file (path)"
                       hint={
-                        payload?.voiceProfile?.present
-                          ? `Found: ${payload.voiceProfile.chars.toLocaleString()} characters. Read at request time; the file is never copied into this project. Leave empty for the default location.`
-                          : `Not found at ${payload?.voiceProfile?.path || 'the default location'}. The humanize pass runs without a profile, and the checkbox is disabled.`
+                        payload?.userProfile?.present
+                          ? `Found: ${payload.userProfile.chars.toLocaleString()} characters. Read at request time; the file is never copied into this project. Leave empty for the default location.`
+                          : `Not found at ${payload?.userProfile?.path || 'the default location'}. The humanize pass runs without a profile, and the switch in the menu is disabled.`
                       }
                     >
                       <DraftInput
-                        value={config?.profilePath ?? ''}
+                        value={config?.userProfilePath ?? ''}
                         placeholder="C:/git/self-profile/profile/operational.md"
-                        onCommit={(value) => onPatch({ profilePath: String(value).trim() })}
+                        onCommit={(value) => onPatch({ userProfilePath: String(value).trim() })}
                       />
                     </Field>
                   </div>
@@ -588,6 +598,24 @@ export function SettingsPanel({
                     className="h-3.5 w-3.5 accent-fg"
                   />
                   Send the location line with each prompt
+                </label>
+                <label className="mt-2 flex cursor-pointer items-center gap-2 text-[11.5px] text-fg-dim">
+                  <input
+                    type="checkbox"
+                    checked={config?.showVoices ?? true}
+                    onChange={(event) => onPatch({ showVoices: event.target.checked })}
+                    className="h-3.5 w-3.5 accent-fg"
+                  />
+                  List every voice in the pass menu
+                </label>
+                <label className="mt-2 flex cursor-pointer items-center gap-2 text-[11.5px] text-fg-dim">
+                  <input
+                    type="checkbox"
+                    checked={config?.showProfile ?? true}
+                    onChange={(event) => onPatch({ showProfile: event.target.checked })}
+                    className="h-3.5 w-3.5 accent-fg"
+                  />
+                  Show {config?.userProfileName?.trim() || 'your profile'} in the pass menu
                 </label>
               </Section>
 

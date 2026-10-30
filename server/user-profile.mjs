@@ -1,9 +1,11 @@
-// The operator's writing profile, read from disk at request time.
+// The user's writing profile, read from disk at request time.
 //
-// The profile is private author material and stays outside this repository: the
-// server reads the file the operator points at, and the app never ships a copy.
-// A missing file is a supported state — the checkbox reports it and the pass
-// runs without a profile — not an error.
+// This tool carries its own copy of the humanizer family, separate from Hermes,
+// so the parts can be named for what they are here: the profile is the user's,
+// the file is theirs, and nothing about it is committed. It stays outside this
+// repository — the server reads the file it is pointed at and never ships a copy.
+// A missing file is a supported state: the switch reports it and the pass runs
+// without a profile, which is not an error.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 
 /** Where to look when the operator has not chosen a path. */
@@ -37,7 +39,7 @@ function keepTheRules(text) {
  * Returns the profile for the prompt plus what the UI needs to report it.
  * Cached against mtime so an edited profile is picked up without a restart.
  */
-export function voiceProfile(path = '') {
+export function userProfile(path = '') {
   const file = String(path || DEFAULT_PROFILE_PATH).trim()
   if (!file || !existsSync(file)) {
     cache = { path: file, mtime: 0, text: '', chars: 0, present: false }
@@ -52,7 +54,7 @@ export function voiceProfile(path = '') {
 }
 
 /** The shape sent to the browser: never the profile body. */
-export function voiceProfileSummary(path = '') {
-  const profile = voiceProfile(path)
+export function userProfileSummary(path = '') {
+  const profile = userProfile(path)
   return { path: profile.path, present: profile.present, chars: profile.chars }
 }

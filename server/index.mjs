@@ -24,7 +24,7 @@ import {
 import { cacheSnapshot, dropProvider, ensureModels, refreshModels } from './models-cache.mjs'
 import { estimateCost } from './pricing.mjs'
 import { buildPrompt, getMode, modeList, sanitiseOutput } from './polish.mjs'
-import { voiceProfile, voiceProfileSummary } from './voice-profile.mjs'
+import { userProfile, userProfileSummary } from './user-profile.mjs'
 import { voiceList } from '../shared/voices.mjs'
 import {
   buildStylePrompt,
@@ -131,7 +131,10 @@ function configPayload() {
     oauth: { providers: publicOAuthProviders(), sessions: oauthHints() },
     models: cacheSnapshot(getConfig().modelsTtlHours),
     voices: voiceList(),
-    voiceProfile: voiceProfileSummary(getConfig().profilePath)
+    userProfile: {
+      ...userProfileSummary(getConfig().userProfilePath),
+      name: getConfig().userProfileName || 'Your profile'
+    }
   }
 }
 
@@ -294,7 +297,7 @@ async function handlePolish(body) {
     contextLine: config.contextLine,
     extraPrompt: config.polishPrompt,
     voice,
-    profile: mode === 'humanize' && useProfile ? voiceProfile(config.profilePath).text : ''
+    profile: mode === 'humanize' && useProfile ? userProfile(config.userProfilePath).text : ''
   })
 
   const result = await chat(provider, {

@@ -1006,8 +1006,11 @@ export default function App() {
                         voices={payload?.voices ?? []}
                         voice={payload?.config.humanizeVoice ?? 'humanizer'}
                         useProfile={payload?.config.useProfile ?? true}
-                        profileReady={Boolean(payload?.voiceProfile?.present)}
-                        profilePath={payload?.voiceProfile?.path ?? ''}
+                        profileReady={Boolean(payload?.userProfile?.present)}
+                        profilePath={payload?.userProfile?.path ?? ''}
+                        profileName={payload?.userProfile?.name ?? 'Your profile'}
+                        showVoices={payload?.config.showVoices ?? true}
+                        showProfile={payload?.config.showProfile ?? true}
                         onToggleProfile={toggleProfile}
                         setsize={visible.length}
                         posinset={index + 1}

@@ -234,10 +234,16 @@ export type Config = {
   modelsTtlHours: number
   /** The model last used with each provider, restored when it is applied again. */
   modelByProvider?: Record<string, string>
-  /** The voice the humanize pass runs in, and whether the operator's profile joins it. */
+  /** The voice the humanize pass runs in, and whether the user's profile joins it. */
   humanizeVoice: string
   useProfile: boolean
-  profilePath: string
+  /** Empty means the default location. The profile body never lives in config. */
+  userProfilePath: string
+  /** What the interface calls that profile. Empty means "Your profile". */
+  userProfileName: string
+  /** What the pass menu offers beyond the three passes. */
+  showVoices: boolean
+  showProfile: boolean
 }
 
 export type OAuthProvider = {
@@ -317,8 +323,8 @@ export type ConfigPayload = {
   profiles: { dir: string }
   oauth: { providers: OAuthProvider[]; sessions: Record<string, OAuthSession> }
   voices?: Voice[]
-  /** Where the profile was looked for and whether it was found. Never its body. */
-  voiceProfile?: { path: string; present: boolean; chars: number }
+  /** Where the profile was looked for, what to call it, and whether it was found. Never its body. */
+  userProfile?: { path: string; present: boolean; chars: number; name: string }
 }
 
 export type Fit = 'ok' | 'near' | 'over' | 'none'

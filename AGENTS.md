@@ -142,7 +142,9 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 
 - `shared/voices.mjs` is the single vocabulary: the menu, the prompt and the tests read the same list. A voice cannot exist in the UI without the prompt knowing what it means, and the menu never receives an instruction field.
 - Every voice is subtraction-only. The shared `VOICE_RULES` block forbids inventing experience, opinions, numbers or specifics, and forbids weakening force-bearing words; do not add a voice that needs to invent detail.
-- The profile is private author material: it is read from disk at request time by `server/voice-profile.mjs`, capped to a paragraph boundary, and never committed, logged, cached in the browser, or copied into a fixture. A missing file is a supported state, not an error.
+- The profile is private author material: it is read from disk at request time by `server/user-profile.mjs`, capped to a paragraph boundary, and never committed, logged, cached in the browser, or copied into a fixture. A missing file is a supported state, not an error.
+- This repository carries its own copy of the humanizer family, separate from the one Hermes runs, so the parts are named for the tool rather than a person: `userProfile`, `userProfilePath`, `userProfileName`. Do not reintroduce a person's name into module or config names; the display name is a setting (`userProfileName`, empty means "Your profile") because the operator chooses what the interface calls their own profile.
+- `showVoices` and `showProfile` decide what the pass menu offers; both off leaves the three passes and a single column. The menu is two columns only when a second one has something in it.
 - `modeList()` entries carry no `id` of their own. `buildPrompt` resolves `modeId` itself; reading `setting.id` directly gave `undefined` and silently turned a grammar pass on a document into a general rewrite.
 - A voice's `applies` field decides where it is offered: `app` voices on string rows, `docs` voices on prose rows, `both` in both menus.
 

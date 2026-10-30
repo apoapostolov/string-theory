@@ -33,11 +33,16 @@ const CONFIG_DEFAULTS = {
   modelByProvider: {},
   // How long a fetched model catalogue stays fresh before it is fetched again.
   modelsTtlHours: 24,
-  /** Which voice the humanize pass uses, and whether the operator's profile rides along. */
+  /** Which voice the humanize pass uses, and whether the user's profile rides along. */
   humanizeVoice: 'humanizer',
   useProfile: true,
-  /** Empty means the default profile location; the body is never stored here. */
-  profilePath: ''
+  /** Empty means the default location. The profile body is never stored here. */
+  userProfilePath: '',
+  /** What to call that profile in the interface. Empty means "Your profile". */
+  userProfileName: '',
+  /** What the pass menu offers: every voice, the user's profile, or only the passes. */
+  showVoices: true,
+  showProfile: true
 }
 
 function ensureData() {
@@ -106,7 +111,11 @@ function open(record) {
 
 export function getConfig() {
   const saved = readJson(CONFIG_FILE, {})
-  return { ...CONFIG_DEFAULTS, ...saved, endpoints: { ...(saved.endpoints ?? {}) } }
+  const merged = { ...CONFIG_DEFAULTS, ...saved, endpoints: { ...(saved.endpoints ?? {}) } }
+  // `profilePath` was the name before this copy of the family was renamed; an
+  // existing config keeps working rather than silently losing the path.
+  if (saved.profilePath && !saved.userProfilePath) merged.userProfilePath = saved.profilePath
+  return merged
 }
 
 export function patchConfig(patch) {

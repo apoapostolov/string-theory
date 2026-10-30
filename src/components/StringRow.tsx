@@ -44,6 +44,9 @@ type Props = {
   useProfile?: boolean
   profileReady?: boolean
   profilePath?: string
+  profileName?: string
+  showVoices?: boolean
+  showProfile?: boolean
   onToggleProfile?: () => void
 }
 
@@ -72,6 +75,9 @@ function RowShell({
   useProfile,
   profileReady,
   profilePath,
+  profileName,
+  showVoices = true,
+  showProfile = true,
   onToggleProfile
 }: Props) {
   if (docs) {
@@ -86,6 +92,9 @@ function RowShell({
         useProfile={useProfile}
         profileReady={profileReady}
         profilePath={profilePath}
+        profileName={profileName}
+        showVoices={showVoices}
+        showProfile={showProfile}
         onToggleProfile={onToggleProfile}
         onRevert={onRevert}
         onCycleState={onCycleState}
@@ -255,6 +264,9 @@ function RowShell({
               useProfile={useProfile}
               profileReady={profileReady}
               profilePath={profilePath}
+              profileName={profileName}
+              showVoices={showVoices}
+              showProfile={showProfile}
               onToggleProfile={onToggleProfile}
               onRun={() => onPolish(row.key)}
               onPick={(mode, picked) => onPolish(row.key, mode, picked)}
