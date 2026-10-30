@@ -554,11 +554,20 @@ export default function App() {
           app: current.app,
           font: row.font ?? current.font
         })
+        const same = response.text === row.text
         setRows((list) =>
           list.map((entry) =>
-            entry.key === key ? { ...entry, text: response.text, busy: false, ai: true, error: null } : entry
+            entry.key === key
+              ? { ...entry, text: response.text, busy: false, ai: !same, error: null }
+              : entry
           )
         )
+        // A pass that hands back the source is not a failure, but it looks like
+        // one when nothing on screen moves. Say so, and say what it cost.
+        if (same) {
+          const pass = response.mode === 'humanize' ? 'humanize' : response.mode
+          pushToast('ok', `The ${pass} pass returned this string unchanged — nothing to apply.`)
+        }
         setPayload((state) => (state ? { ...state, usage: response.summary } : state))
       } catch (error) {
         const message = (error as Error).message

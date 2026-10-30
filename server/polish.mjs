@@ -79,7 +79,9 @@ export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt, v
       item.note ? `- Context from the export: ${item.note}` : null,
       contextLine && item.appContext ? `- Project context: ${item.appContext}` : null,
       extraPrompt ? `- Extra instruction from the operator: ${extraPrompt}` : null,
-      '- If the passage already reads well, return it unchanged.',
+      setting.id === 'humanize'
+        ? '- This pass applies a method, so the answer must differ from the source unless the passage is a lone word or a product name. If it already reads well, tighten it rather than returning it.'
+        : '- If the passage already reads well, return it unchanged.',
       '',
       voiceTail ||
         `Task for this pass: ${setting.id === 'grammar' ? 'Correct grammar, spelling, punctuation and capitalisation only. Keep the wording.' : 'Rewrite the passage so it reads better: clearer, tighter, honest. Same meaning, same facts, same structure.'}`
@@ -131,7 +133,16 @@ export function buildPrompt({ item, mode, app, font, contextLine, extraPrompt, v
     item.note ? `- Context from the export: ${item.note}` : null,
     contextLine && item.appContext ? `- Screen context: ${item.appContext}` : null,
     extraPrompt ? `- Extra instruction from the operator: ${extraPrompt}` : null,
-    '- If the original already reads well and fits the budget, return it unchanged.',
+    setting.id === 'humanize'
+      ? [
+          '- This pass applies a method, not a defect report: for a sentence, the answer must differ from the source. Apply the method even where it already reads well — tightening, never restyling.',
+          item.text.trim().split(/\s+/).length <= 2
+            ? '- This one is a word or a short label, where a different word is a product decision: change it only where the method names a defect, otherwise return it unchanged.'
+            : null
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : '- If the original already reads well and fits the budget, return it unchanged.',
     '',
     voiceTail || `Task for this pass: ${setting.instruction}`
   ]

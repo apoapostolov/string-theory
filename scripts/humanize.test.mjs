@@ -100,5 +100,31 @@ const block = voiceBlock({ voice: 'simple', profile: 'X' })
 check('the block names the voice once', (block.match(/Simple English voice/g) ?? []).length === 1)
 check('the block ends with the profile', block.trim().endsWith('X'))
 
+// A humanize pass is a method, not a repair. Told to keep what already reads
+// well, the model echoed the source and the pass looked broken.
+check('a voice no longer offers the unchanged escape', !/already reads well, return it unchanged/.test(block))
+check('a voice asks for tightening instead', /already reads well/.test(block) && /tightening/.test(block))
+
+const appItem = {
+  id: 'a.b',
+  text: 'Known sites get an icon automatically.',
+  where: 'Quicklinks',
+  tags: ['hint'],
+  maxPxPerLine: 312,
+  maxLines: 2,
+  surface: 'app'
+}
+const uiFont = { family: 'Inter', size: 13, weight: 400, letterSpacing: 0 }
+const humanizePrompt = buildPrompt({ item: appItem, mode: 'humanize', font: uiFont, voice: 'humanizer', profile: '' })
+check('a humanize prompt forbids the no-op', /must differ from the source/.test(humanizePrompt.system))
+check('a humanize prompt drops the unchanged allowance', !/return it unchanged/.test(humanizePrompt.system))
+check('the humanize prompt still carries the budgets', /312px box/.test(humanizePrompt.system))
+const docsPrompt = buildPrompt({ item: { ...appItem, surface: 'docs', maxLines: 0 }, mode: 'humanize', voice: 'prose', profile: '' })
+check('a prose humanize forbids the no-op too', /must differ from the source/.test(docsPrompt.system))
+for (const mode of ['grammar', 'style', 'fit']) {
+  const other = buildPrompt({ item: appItem, mode, font: uiFont, voice: 'humanizer', profile: '' })
+  check(`a ${mode} pass may still report no change`, /return it unchanged/.test(other.system))
+}
+
 console.log(`\n${pass}/${pass + fail} checks passed`)
 process.exit(fail ? 1 : 0)

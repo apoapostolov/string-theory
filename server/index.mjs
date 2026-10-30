@@ -333,6 +333,14 @@ async function handlePolish(body) {
     })
   }
 
+  // One line per call, with whether it actually changed the string: a pass that
+  // echoes the source is invisible in the UI and easy to blame on the wiring.
+  const unchanged = text === item.text
+  console.log(
+    `[polish] ${mode}${mode === 'humanize' ? `:${voice}` : ''} ${item.id ?? '(no id)'} ` +
+      `${result.inputTokens}->${result.outputTokens} tok, ${result.ms}ms, ${unchanged ? 'unchanged' : 'changed'}`
+  )
+
   const costUsd = estimateCost(provider.id, model, result.inputTokens, result.outputTokens)
   const entry = {
     id: randomUUID(),
@@ -344,7 +352,8 @@ async function handlePolish(body) {
     inputTokens: result.inputTokens,
     outputTokens: result.outputTokens,
     costUsd,
-    ms: result.ms
+    ms: result.ms,
+    changed: !unchanged
   }
   await recordUsage(entry)
 

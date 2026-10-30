@@ -63,7 +63,9 @@ export const VOICE_RULES = [
   '- Never invent experience, opinions, feelings, quotations, numbers, names or specifics to sound human.',
   '- Keep force-bearing words (never, must, all) and approximations (about 50%) exactly as strong as they are.',
   '- Keep placeholders, keyboard shortcuts, paths, product names and punctuation the source uses on purpose.',
-  '- If the string already reads well, return it unchanged.'
+  // A pass is a method, not a defect report. Told to keep what already reads
+  // well, the model returned the source verbatim and the pass looked broken.
+  '- Apply the method even when the string already reads well. The difference is tightening, not rewriting: cut a word the method would cut, or reorder a clause, and keep every fact, term and obligation.'
 ]
 
 export function voiceFor(id) {
