@@ -126,6 +126,16 @@ Do not copy the whole spec into all four. Each home carries what its reader need
 - A format change touches `docs/format.md`, the schema, `FormatSpec` and this prompt in the same commit. `scripts/validate-export.mjs` is the arbiter: an export produced from the prompt must exit 0 or the prompt is wrong.
 - The instructions open from two places on purpose: the inbox empty state, and an AI Instructions button in the picker header, which must work when files are already present.
 
+## Windowing
+
+- `src/lib/useVirtualRows.ts` renders only the rows around the viewport inside a spacer of the full height. Never render the whole list to fix a scrolling bug; fix the window.
+- Heights are measured with a ResizeObserver per mounted row, never assumed from a constant. A row changes height when the text wraps, a tag is added or the layout narrows, and the rows below must move by that amount.
+- Unmeasured rows take the median of the measured ones, not the starting estimate: guessing 96 against a measured 102 moves the scrollbar thumb on every measurement.
+- Read the scroller on the scroll event itself. `requestAnimationFrame` does not fire in a hidden window, so a deferred update leaves the list stale until the window is shown; there is also a `visibilitychange` resync.
+- The row with focus is always mounted, outside the window when necessary, so a textarea never loses focus or its caret.
+- Only mounted rows exist in the DOM, so every row carries `aria-setsize` and `aria-posinset`, and zebra striping comes from the row's index (`data-even`), not `nth-child`.
+- `.st-rows` exposes `data-start`, `data-end` and `data-count` so windowing can be asserted without pixels; `scrollToIndex` reaches a row that is not mounted yet.
+
 ## Change prompt
 
 - `shared/change-prompt.mjs` builds the instructions from the working set, and `scripts/change-prompt.test.mjs` checks it without a browser (`npm run test:changes`). One line per changed string, in the shape `Replace "old" with "new" in <section> (id: …)`.

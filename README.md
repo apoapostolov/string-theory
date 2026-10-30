@@ -43,6 +43,12 @@ Verdicts are a left border and a tint: green fits, amber fits but reads badly at
 
 Fonts are measured as declared: family, size, weight and letter spacing, per file, with an optional per-string override for the panel title that is 16px inside a file of 14px labels.
 
+## Large files
+
+A real app has thousands of strings, and rendering all of them is what makes a tool feel broken: every row carries a measured canvas, a textarea, three meters and its tags. The list is windowed instead. Only the rows around the viewport are mounted, each absolutely positioned inside a spacer as tall as the whole file, so the scrollbar stays honest and a jump to row 900 still lands.
+
+Measured on the 1,604-string Moo export in this repository: opening the file went from **3,139 ms to 149 ms**, the document from **105,671 elements to 1,099**, and the mounted rows from 1,604 to 13. Row heights are measured, never assumed — a row grows when the text wraps or a tag is added, and every row below it moves by exactly that much. The row being edited stays mounted while it scrolls out of view, so focus is never stolen mid-sentence.
+
 ## Changes, written as instructions
 
 Not every app can read a JSON file back, and waiting on a converter is a good way to never see a rewrite land. `Generate Prompt`, at the end of the footer, writes the changed strings as instructions instead: one line per change, ready to paste into whatever agent owns the app.

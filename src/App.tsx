@@ -32,6 +32,7 @@ import { StylePanel } from './components/StylePanel'
 import { Toasts, type Toast } from './components/Toasts'
 import { TagBar, type TagCount } from './components/TagBar'
 import { ChangePrompt } from './components/ChangePrompt'
+import { useVirtualRows } from './lib/useVirtualRows'
 import { customTagsIn, isStandardTag, normalizeTag, tagLabel } from './lib/tags'
 import { Button } from './components/Button'
 
@@ -119,6 +120,8 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<FilterId>('all')
   const [promptOpen, setPromptOpen] = useState(false)
+  const listRef = useRef<HTMLElement | null>(null)
+  const [pinnedKey, setPinnedKey] = useState<string | null>(null)
   const [activeTags, setActiveTags] = useState<string[]>([])
   const [tagMode, setTagMode] = useState<'any' | 'all'>('any')
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -626,6 +629,11 @@ export default function App() {
     })
   }, [decorated, filter, query, matchesTags])
 
+  // A thousand strings is a hundred thousand pixels nobody is looking at.
+  const visibleKeys = useMemo(() => visible.map((entry) => entry.row.key), [visible])
+  const pinned = pinnedKey && visibleKeys.includes(pinnedKey) ? pinnedKey : null
+  const virtual = useVirtualRows({ keys: visibleKeys, estimate: 96, scrollRef: listRef, pinnedKey: pinned })
+
   // Evidence for the style analyst: finished rewrites, never untouched rows.
   const stylePairs = useMemo<StylePair[]>(
     () =>
@@ -725,6 +733,8 @@ export default function App() {
     if (!problems.length) return
     const target = problems[jumpCursor.current % problems.length]
     jumpCursor.current += 1
+    const index = visibleKeys.indexOf(target.row.key)
+    if (index >= 0) virtual.scrollToIndex(index)
     const node = document.getElementById(`row-${target.row.key}`)
     if (node) {
       node.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -861,31 +871,57 @@ export default function App() {
         />
       ) : null}
 
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
         {!hasFile ? (
           <EmptyState onOpen={pickFile} onSample={loadSample} onFormat={() => setSpecOpen(true)} />
         ) : visible.length ? (
-          <div role="list" aria-label="Strings in this file" className="st-rows pb-16">
-            {visible.map((entry) => (
-              <StringRow
-                key={entry.row.key}
-                row={entry.row}
-                font={entry.font}
-                wrap={entry.wrap}
-                wrapFit={entry.pxFit}
-                warnRatio={warnRatio}
-                canPolish={providerReady}
-                onEdit={onEdit}
-                onPolish={polish}
-                onRevert={onRevert}
-                onCycleState={onCycleState}
-                onResetState={onResetState}
-                customTags={customTags}
-                activeTags={activeTags}
-                onToggleTag={toggleRowTag}
-                onFilterTag={toggleTag}
-              />
-            ))}
+          <div
+            role="list"
+            aria-label="Strings in this file"
+            className="st-rows"
+            data-start={virtual.start}
+            data-end={virtual.end}
+            data-count={visible.length}
+            style={{ height: virtual.totalHeight + 64 }}
+          >
+            {Array.from({ length: Math.max(0, virtual.end - virtual.start) }, (_, offset) => virtual.start + offset)
+              .concat(virtual.extra)
+              .map((index) => {
+                const entry = visible[index]
+                if (!entry) return null
+                return (
+                  <div
+                    key={entry.row.key}
+                    role="presentation"
+                    className="st-rowwrap"
+                    style={{ transform: `translateY(${virtual.offsetOf(index)}px)` }}
+                    onFocus={() => setPinnedKey(entry.row.key)}
+                  >
+                    <div ref={(node) => virtual.register(entry.row.key, node)}>
+                      <StringRow
+                        row={entry.row}
+                        font={entry.font}
+                        wrap={entry.wrap}
+                        wrapFit={entry.pxFit}
+                        warnRatio={warnRatio}
+                        canPolish={providerReady}
+                        onEdit={onEdit}
+                        onPolish={polish}
+                        onRevert={onRevert}
+                        onCycleState={onCycleState}
+                        onResetState={onResetState}
+                        customTags={customTags}
+                        activeTags={activeTags}
+                        onToggleTag={toggleRowTag}
+                        onFilterTag={toggleTag}
+                        even={index % 2 === 1}
+                        setsize={visible.length}
+                        posinset={index + 1}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 py-24 text-center">

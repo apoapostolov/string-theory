@@ -43,6 +43,11 @@ type Props = {
   activeTags: string[]
   onToggleTag: (key: string, tag: string) => void
   onFilterTag: (tag: string) => void
+  /** Zebra striping follows the row's place in the list, not the DOM position. */
+  even?: boolean
+  /** Only the rows near the viewport are mounted, so the list states its size. */
+  setsize?: number
+  posinset?: number
 }
 
 const STATE_HINT: Record<RowState, string> = {
@@ -191,7 +196,10 @@ function RowShell({
   customTags,
   activeTags,
   onToggleTag,
-  onFilterTag
+  onFilterTag,
+  even = false,
+  setsize,
+  posinset
 }: Props) {
   const beforeWrap = wrapText(row.source, row.maxPxPerLine, font)
   const beforePx = beforeWrap.widest
@@ -233,6 +241,9 @@ function RowShell({
     <div
       id={`row-${row.key}`}
       role="listitem"
+      data-even={even ? 'true' : 'false'}
+      aria-setsize={setsize}
+      aria-posinset={posinset}
       aria-labelledby={`row-label-${row.key}`}
       aria-describedby={`row-verdict-${row.key}`}
       className={`st-row ${BORDER[fit]}`}
