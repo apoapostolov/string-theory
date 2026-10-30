@@ -92,6 +92,10 @@ The list is the product, so it is built to be read rather than looked at:
 
 ## Quick start
 
+<p align="center">
+  <img src="docs/banner.png" alt="String Theory: rewrite an app's UI strings against the pixel budget the layout gives them" width="100%">
+</p>
+
 Node 22 or newer.
 
 ```powershell
@@ -101,10 +105,6 @@ npm run dev
 ```
 
 One URL in both modes, <http://127.0.0.1:4317>. In dev the supervisor starts Vite on 4317 with hot module replacement and the API on 4318 behind the `/api` proxy, so a client edit lands in the open page and a server edit restarts the API without touching your working sets.
-
-<p align="center">
-  <img src="docs/banner.png" alt="String Theory: rewrite an app's UI strings against the pixel budget the layout gives them" width="100%">
-</p>
 
 ### Keep it running
 
